@@ -1,0 +1,49 @@
+% http://en.wikipedia.org/wiki/Source_lines_of_code
+% \graphic[scale=0.75]{sloc_windows}{Lines of code: Windows}
+% \graphic[scale=0.75]{sloc_unix}{Lines of code: Unix}
+% \begin{figure}[ht]
+% \begin{minipage}[t]{0.5\linewidth}
+% \centering
+% \includegraphics[scale=0.75]{graphics/sloc_windows}
+% \caption{Lines of code: Windows}
+% \label{fig:sloc_windows}
+% \end{minipage}
+% \hspace{0.5cm}
+% \begin{minipage}[t]{0.5\linewidth}
+% \centering
+% \includegraphics[scale=0.75]{graphics/sloc_unix}
+% \caption{Lines of code: Unix}
+% \label{fig:sloc_unix}
+% \end{minipage}
+% \end{figure}
+
+\begin{table}[ht]
+\begin{minipage}[b]{0.5\linewidth}\centering
+\begin{tabular}{clc}\hline
+Year & Operating System & SLOC (Million)\\\hline
+1993 & Windows NT 3.1 & 4-5\\
+1994 & Windows NT 3.5 & 7-8\\
+1996 & Windows NT 4.0 & 11-12\\
+2000 & Windows 2000 & \textgreater29\\
+2001 & Windows XP & 45\\
+2003 & Windows Server 2003 & 50
+\end{tabular}
+\caption{Lines of code: Windows \cite{sloc}}
+\label{tbl:sloc_win}
+\end{minipage}
+\hspace{0.5cm}
+\begin{minipage}[b]{0.5\linewidth}\centering
+\begin{tabular}{lc}\hline
+Operating System & SLOC (Million)\\\hline
+Debian 2.2 & 55-59\\
+Debian 5.0 & 324\\
+OpenSolaris & 9.7\\
+FreeBSS & 8.8\\
+Mac OS X 10.4 & 86\\
+Linux kernel 2.6.0 & 5.2\\
+Linux kernel 2.6.35 & 13.5
+\end{tabular}
+\caption{Lines of code: Unix \cite{sloc}}
+\label{tbl:sloc_unix}
+\end{minipage}
+\end{table}

@@ -1,0 +1,34 @@
+\chapter{Introduction}
+\label{chap:introduction}
+% - Zeitaufwand > Zahlen
+Testing code can be cumbersome and time-consuming. Some errors might not be found. This is especially true for multi-threaded programs. So called data races can be very hard to find and to reproduce.
+
+\begin{definition}[Data Race]
+ Different threads of a program access the same shared memory location, and at least one thread writes to it.
+\end{definition}
+
+With the increase in size and complexity of software projects and their source code, it gets more important to automatize the testing process as much as possible. An example of how fast the source lines of code in modern operating systems have been increasing can be seen in tables \ref{tbl:sloc_win} and \ref{tbl:sloc_unix}. Although the numbers may not be precise, they give an intuition.
+
+\input{tables/sloc}
+
+% http://en.wikipedia.org/wiki/Dynamic_program_analysis
+One way of testing is to execute the program. This is called dynamic analysis. In order to be effective the program has to be analyzed with enough different test inputs. The goal is to find errors by running the program on inputs that are likely to produce failures. The problem with that is, that the absence of errors can't be proven and errors could remain unnoticed. There are many examples for what insufficient testing might lead to, a prominent one is the self-destruction of the Ariane 5 rocket \cite{Dowson:1997:ASF:251880.251992}.
+
+% http://en.wikipedia.org/wiki/Static_program_analysis
+% http://www.di.ens.fr/~cousot/Equipeabsint-eg.shtml
+Goblint does sound, static analysis, which uses abstract interpretation to approximate the semantics of a program. Static means that it is able to approximate the run-time behavior of the program without having to execute it. Sound means that the absence of errors - in contrast to dynamic analysis - \textit{can} be proven. This is especially important for the verification of properties in safety-critical applications like medical software or software for planes, launchers, reactors and so on.
+
+The main use case for Goblint is race detection in multi-threaded C programs. Although C is more and more replaced by languages like Java and C\#, it is still one of the most widely used programming languages and is dominant in implementing system software (e.g. Linux kernel) and in embedded applications. With the rise of multi-core architectures, multi-threading has also become more important.
+
+% - Goblint-Fakten: Tests, Benchmarks, Linux-Kernel komplett analysiert > gefundene Races?
+Goblint has been tested on parts of the Linux kernel and is sufficiently efficient to be used for race-detection of multi-threaded programs up to about 25 thousand lines of code \cite{Vojdani10Thesis,goblint.pdf}.
+
+% floats, OSEK, OpIAT
+Within the scope of the OpIAT project \cite{opiat}, Goblint is used for interprocedural analysis of programs with dynamic thread-creation, especially value analysis in OSEK\footnote{OSEK-OS is a real-time operating system for embedded components, mainly for automotive applications.} programs, for which the handling of floats would be useful.
+
+There is also an Eclipse plug-in that displays the results of the analysis in a view and adds warning markers for places in the code where a data race might occur. A screenshot can be seen in \refFigure{screenshot_eclipse}.
+
+If you want to try Goblint, there is a getting started guide in the appendix (\refChapter{app:setup}).
+
+
+\graphic{screenshot_eclipse}{Screenshot of Goblint's Eclipse plug-in \cite{goblint}}

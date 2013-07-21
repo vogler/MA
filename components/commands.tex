@@ -1,0 +1,169 @@
+%-------------------------------------------------------------
+% math stuff -------------------------------------------------
+
+% nice R, N, C
+\newcommand{\nat}{\mathbb{N}}
+\newcommand{\real}{\mathbb{R}}
+\newcommand{\compl}{\mathbb{C}}
+
+
+
+% norm
+\newcommand{\norm}[1]{\left\| #1 \right\|}
+
+% un demi
+\newcommand{\half}{\frac{1}{2}}
+
+% parantheses
+\newcommand{\parenth}[1]{ \left( #1 \right) }
+\newcommand{\bracket}[1]{ \left[ #1 \right] }
+\newcommand{\accolade}[1]{ \left\{ #1 \right\} }
+%\newcommand{\angle}[1]{ \left\langle  #1 \right\rangle }
+
+% partial derivative: %#1 function, #2 which variable
+% simple / single line version
+\newcommand{\pardevS}[2]{ \delta_{#1} f(#2) }
+% fraction version
+\newcommand{\pardevF}[2]{ \frac{\partial #1}{\partial #2} }
+
+% render vectors: 3 and 4 dimensional
+\newcommand{\veciii}[3]{\left[ \begin{array}[h]{c} #1 \\ #2 \\ #3	\end{array} \right]}
+\newcommand{\veciv}[4]{\left[ \begin{array}[h]{c} #1 \\ #2 \\ #3 \\ #4	\end{array} \right]}
+
+% render matrices: 3  dimensional (arguments in row first order)
+\newcommand{\matiii}[9]{\left[ \begin{array}[h]{ccc} #1 & #2 & #3 \\ #4 & #5 & #6 \\ #7 & #8 & #9	\end{array} \right]}
+%DOESN'T WORK,DON'T KNOW WHY \newcommand{\mativ}[16]{\left[ \begin{array}[h]{cccc} #1 & #2 & #3 & #4 \\ #5 & #6 & #7 & #8 \\ #9 & #10 & #11 & #12 \\ #13 & #14 & #15 & #16 \end{array} \right]}
+
+
+%-------------------------------------------------------------
+%-------------------------------------------------------------
+
+
+%-------------------------------------------------------------
+% some abreviations ------------------------------------------
+\newcommand{\Reg}{$^{\textregistered}$}
+\newcommand{\reg}{$^{\textregistered}$ }
+\newcommand{\Tm}{\texttrademark}
+\newcommand{\tm}{\texttrademark~}
+\newcommand {\bsl} {$\backslash$}
+
+%-------------------------------------------------------------
+%-------------------------------------------------------------
+
+
+%-------------------------------------------------------------
+% formating --------------------------------------------------
+
+% Theorem & Co environments and counters
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{equat}[theorem]{Equation}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{algorithm}[theorem]{Algorithm}
+
+% inserting figures
+\newcommand{\insertfigure}[4]{ % Filename, Caption, Label, Width percent of textwidth
+	\begin{figure}[htbp]
+		\begin{center}
+			\includegraphics[width=#4\textwidth]{#1}
+		\end{center}
+		\vspace{-0.4cm}
+		\caption{#2}
+		\label{#3}
+	\end{figure}
+}
+
+\newcommand{\graphic}[3][width=\linewidth] % options, label/filename, caption
+{
+  \begin{figure}[ht]
+    \centering
+    \includegraphics[#1]{graphics/#2}
+    \caption{#3}
+    \label{fig:#2}
+  \end{figure}
+}
+
+% \newcommand{\listing}[2]
+% {
+%   \lstinputlisting[caption={#2},label=lst:#1]{listings/#1}
+% }
+
+\newcommand{\listingC}[2]
+{
+  \lstinputlisting[language=C++,caption={#2},label=lst:#1]{listings/17-file/#1}
+}
+
+\newcommand{\listingML}[2]
+{
+  \lstinputlisting[language=ML,caption={#2},label=lst:#1]{listings/#1}
+}
+
+% referencable footnotes
+% http://anthony.liekens.net/index.php/LaTeX/MultipleFootnoteReferences
+\newcommand{\footnoteremember}[2]{
+  \footnote{#2}
+  \newcounter{#1}
+  \setcounter{#1}{\value{footnote}}
+}
+\newcommand{\footnoterecall}[1]{
+  \footnotemark[\value{#1}]
+}
+
+
+% referecing figures
+
+\newcommand{\refFigure}[1]{ %label
+	figure \ref{fig:#1}
+}
+
+\newcommand{\refChapter}[1]{ %label
+	chapter \ref{chap:#1}
+}
+
+\newcommand{\refSection}[1]{ %label
+	section \ref{sec:#1}
+}
+
+\newcommand{\refParagraph}[1]{ %label
+	paragraph \ref{par:#1}
+}
+
+\newcommand{\refEquation}[1]{ %label
+	equation \ref{eq:#1}
+}
+
+\newcommand{\refTable}[1]{ %label
+	table \ref{tbl:#1}
+}
+
+\newcommand{\refListing}[1]{ %label
+	listing \ref{lst:#1}
+}
+
+
+\newcommand{\rigidTransform}[2]
+{
+	${}^{#2}\!\mathbf{H}_{#1}$
+}
+
+%code, in typewriter
+\newcommand{\code}[1]
+ {\texttt{#1}}
+
+% comment that appears on the border - very practical !!!
+\newcommand{\comment}[1]{\marginpar{\raggedright \noindent \footnotesize {\sl #1} }}
+
+% page clearing
+\newcommand{\clearemptydoublepage}{%
+  \ifthenelse{\boolean{@twoside}}{\newpage{\pagestyle{empty}\cleardoublepage}}%
+  {\clearpage}}
+
+
+%-------------------------------------------------------------
+%-------------------------------------------------------------
+
+
+\newcommand{\etAl}{\emph{et al.}\mbox{ }}

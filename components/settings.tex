@@ -1,0 +1,178 @@
+\renewcommand{\sectfont}{\normalfont \bfseries}        % Schriftart der Kopfzeile
+
+% manipulate footer
+\usepackage{scrpage2}
+\pagestyle{scrheadings}
+\ifoot[\footertext]{\footertext} % \footertext set in INFO.TEX
+%\setkomafont{pagehead}{\normalfont\rmfamily}
+\setkomafont{pagenumber}{\normalfont\rmfamily}
+
+%% allow sophisticated control structures
+\usepackage{ifthen}
+
+% use Palatino as default font
+\usepackage{palatino}
+
+% enable special PostScript fonts
+\usepackage{pifont}
+
+% make thumbnails
+% \usepackage{thumbpdf}
+
+%to use the subfigures
+%\usepackage{subfigure} % XX
+
+
+\usepackage{colortbl}
+
+
+%% show program code\ldots
+% \usepackage{verbatim}
+% \usepackage{program}
+
+%% enable TUM symbols on title page
+\usepackage{styles/tumlogo}
+
+
+%\usepackage{multirow} % XX
+
+%% use colors
+\usepackage{color}
+
+%% make fancy math
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{textcomp}
+%\usepackage{yhmath} % für die adots 
+%% mark text as preliminary
+%\usepackage[draft,german,scrtime]{prelim2e}
+
+%% create an index
+\usepackage{makeidx}
+
+% for the program environment
+\usepackage{float}
+
+%% load german babel package for german abstract
+%\usepackage[german,american]{babel}
+% \usepackage[ngerman,english]{babel}
+% \selectlanguage{english}
+
+% use german characters as well
+% \usepackage[latin1]{inputenc}       % allow Latin1 characters
+\usepackage[utf8]{inputenc}
+
+% use initals dropped caps - doesn't work with PDF
+% \usepackage{dropping}
+
+
+% \usepackage{styles/shortoverview}
+%----------------------------------------------------
+%      Graphics and Hyperlinks
+%----------------------------------------------------
+%% pdfTex
+%% reduce output size \pdfcompresslevel=9
+%% declare pdfinfo
+%\pdfinfo { 
+%  /Title (my title) 
+%  /Creator (pdfLaTeX) 
+%  /Author (my name) 
+%  /Subject (my subject	) 
+%  /Keywords (my keywords)
+%}
+%% use pdf or jpg graphics
+\usepackage[pdftex]{graphicx}
+\DeclareGraphicsExtensions{.jpg,.JPG,.png,.pdf,.eps}
+\graphicspath{{graphics/}} 
+
+%% Load float package, for enabling floating extensions
+% \usepackage{float}
+
+%% allow rotations
+\usepackage{rotating}
+%% use pdftex version of hyperref
+\usepackage[pdftex,colorlinks=true,linkcolor=red,citecolor=blue,%
+anchorcolor=red,urlcolor=red,bookmarks=true,%
+bookmarksopen=true,bookmarksopenlevel=1,plainpages=false,%
+bookmarksnumbered=true,hyperindex=false,pdfstartview=%
+]{hyperref}
+%\usepackage[hyphenbreaks]{breakurl}
+
+
+
+%% Fancy chapters
+%\usepackage[Lenny]{fncychap}
+%\usepackage[Glenn]{fncychap}
+%\usepackage[Bjarne]{fncychap}
+
+%\usepackage[avantgarde]{quotchap}
+
+% set the bibliography style
+%\bibliographystyle{styles/bauermaNum}
+%\bibliographystyle{alpha}
+\bibliographystyle{plain}
+
+
+%%%%% listings %%%%%%
+
+%% grey captions
+\usepackage{xcolor}
+% \usepackage{caption}
+% \DeclareCaptionFont{white}{\color{white}}
+% \DeclareCaptionFormat{listing}{\colorbox{gray}{\parbox{\textwidth}{#1#2#3}}}
+% \captionsetup[lstlisting]{format=listing,labelfont=white,textfont=white}
+
+% \usepackage{scrhack}
+\usepackage{listings}
+
+%% Wiesi
+% \lstset{
+% %   language=C++,
+% %   keywordstyle=\bfseries,
+% %   emphstyle=\underbar,
+%   captionpos=b,
+% %   numbers=right,
+% %   stepnumber=5,
+% %   numberstyle=\small,
+% %   xleftmargin=2em,
+% %   xrightmargin=3em,
+% %   frame=r
+% }
+
+%% http://stackoverflow.com/questions/741985/latex-source-code-listing-like-in-professional-books
+\usepackage[]{sourcecodepro}	% Adobe Source Code Pro, included in texlive-fontsextra
+\definecolor{light-gray}{gray}{0.95}
+\definecolor{myblue}{rgb}{0,0,0.8}
+\definecolor{mygreen}{rgb}{0,0.4,0}
+\definecolor{mymauve}{rgb}{0.5,0,0.8}
+\definecolor{mygray}{rgb}{0.5,0.5,0.5}
+\lstset{
+%  language=C,
+  basicstyle=\small\sffamily,
+%  basicstyle=\small\ttfamily,
+  keywordstyle=\color{myblue},
+  commentstyle=\color{mygreen}, 
+  stringstyle=\color{mymauve},
+  numberstyle=\tiny\color{mygray},
+  numbers=left,
+  captionpos=b,
+  abovecaptionskip=7pt,
+%  columns=fullflexible,
+  showstringspaces=false,
+  backgroundcolor=\color{light-gray},
+  linewidth=\linewidth,		% Zeilenbreite
+  breaklines=true,			% Zeileumbruch
+  breakatwhitespace=false,	% Umbruch an Leerzeichen
+  tabsize=2,
+  extendedchars=true,
+  xleftmargin=17pt,
+  framexleftmargin=17pt,
+  frame=tb,
+%  frame=single,
+%  frameround=tttt,
+}
+
+
+%% compact lists
+\usepackage{mdwlist}
