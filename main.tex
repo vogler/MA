@@ -16,24 +16,25 @@ Adding an own analysis
 \section{Common problems using files}
 The following examples for common problems served as a guideline for the implementation and contain comments that indicate where warnings would be output.
 
-Listing \ref{lst:01-ok.c} shows opening a file \verb|test.txt| and appending the line "Testing..." to it. At the end the file is closed.
+\refListing{01-ok.c} shows opening a file \verb|test.txt| and appending the line "Testing..." to it. At the end the file is closed.
 \listingC{01-ok.c}{Everything fine?}
 This seems fine, but what happens if the file can't be written to?
 We forgot to check the result of \verb|fopen| which returns an error code if the file couldn't be opened successfully.
 This case is handled by the implementation and can also be checked using the specification language. In this example warnings would be issued that the file handle might not be open after line 5.
 
 For brevity reasons a success check is omitted in the following examples and it's assumed that the file could be opened without errors. The specification version can be easily adjusted to conform to this by just replacing a few states, whereas the manual implementation would always warn about maybe unopened file handles.
-\\\\
+
+
 Not closing files is not necessarily an error since file handles are closed at the end of the program anyway, but it's not good practice and might lead to unwanted program behavior.
 Imagine a program that is done with a file but doesn't close it. If the program gets stuck in calculations or on user input, the file will still be locked and can't be used by other programs.
 
-Listing \ref{lst:03-if-close.c} shows where warnings would be issued. There is a warning where the file was opened and a summary of unclosed files at the end of the program.
+\refListing{03-if-close.c} has comments for warnings that would be issued. There is a warning where the file was opened and a summary of unclosed files at the end of the program.
 \listingC{03-if-close.c}{Missing fclose}
 
-Listing \ref{lst:04-no-open.c} shows what happens if the file handle was not opened before using it. When running the program, this leads to a segmentation fault.
+\refListing{04-no-open.c} shows what happens if the file handle was not opened before using it. When running the program, this leads to a segmentation fault.
 \listingC{04-no-open.c}{Missing fopen}
 
-Writing to a file which is opened read-only as shown in Listing \ref{lst:05-open-mode.c} is another problem. Bugs of this kind might be hard to find, since this executes without errors - there is just nothing written to the file.
+Writing to a file which is opened read-only as demonstrated in \refListing{05-open-mode.c} is another problem. Bugs of this kind might be hard to find, since this executes without errors - there is just nothing written to the file.
 \listingC{05-open-mode.c}{Wrong open mode}
 
 
