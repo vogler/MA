@@ -69,16 +69,21 @@ The domain \textbf{V} represents one file handle. \refListing{fileDomainType.ml}
 
 \item[state] can be \verb|Open(filename, mode)| or \verb|Close|.
 
-\item[mode] can be \verb|Read| for file open modes \verb|r| or \verb|Write| for modes \verb|w|.
+\item[mode] can be \verb|Read| if the file is opened read-only with mode \verb|r| or \verb|Write| for all other modes.
 
 \item[loc] is a stack of locations from the assignment to \verb|var| down to the use of the stdio-function. It is maintained as a special value inside \textbf{M}. On entering a function, the location of the call site is pushed, and popped again when leaving the function.
 Example for loc!
 \end{description}
+As mentioned above, there are some special cases concerning May-Sets:
+\begin{itemize}
+\item The empty set represents \textbf{V}'s bottom element: \verb|May {}| $ = \bot$
+\item The set with exactly one element \verb|May {x}| means that that the record \verb|x| might not safely describe the file handle anymore because of an unsupported operation (e.g. pointer arithmetic).
+\item The set with more than one element \verb|May {x, y, z ...}| contains possible alternative records. 
 
-Special cases: May [] = bot, May [x]: really may (fp changed etc.), May [a, b, c]: a or b or c
--> examples:
-	closed at 3 or 6 -> closed!
-	opened for read or write -> opened
+Even if the correct one is not known, these alternatives can be used to answer questions about the state during the analysis.
+
+Assume for example that the set contains records with the states \verb|Open(..., Read)| and \verb|Open(..., Write)|. In this case it is safe to say that the file is opened, if it is writable on the other hand is unknown. Another example: all states are \verb|Close| but with different locations.
+\end{itemize}
 
 
 
