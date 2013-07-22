@@ -1,0 +1,109 @@
+\part*{Appendix}
+\label{appendix}
+\addcontentsline{toc}{part}{Appendix}
+
+\appendix %---------------------------------------
+
+
+\chapter{Setup}
+\label{chap:app:setup}
+Install opam\footnote{\url{http://opam.ocamlpro.com/}}, then do
+\begin{lstlisting}
+opam install ocamlfind camomile batteries cil xml-light
+\end{lstlisting}
+to install the latest versions of the dependencies for the current user. After that you can build goblint:
+
+\begin{lstlisting}
+git clone https://github.com/goblint/analyzer.git
+cd analyzer
+make
+\end{lstlisting}
+If something goes wrong, switch to the versions listed in \verb|INSTALL|:
+\begin{lstlisting}
+opam switch 4.00.1
+opam install ocamlfind.1.3.3 camomile.0.8.3 batteries.2.0.0 cil.1.5.1 xml-light.2.2
+\end{lstlisting}
+Alternatively you can use your system's package manager to install the dependencies globally or use \verb|install_script.sh| to build everything from source without affecting any existing OCaml installation.
+
+\paragraph*{Web frontend}
+In order to setup the web frontend, make sure Node.js\footnote{\url{http://nodejs.org/}} is installed and do:
+\begin{lstlisting}
+git submodule update --init --recursive
+cd webapp
+sudo npm install -g bower coffee-script nodemon     # install those globally if not already installed (nodemon is optional)
+npm install && bower install
+\end{lstlisting}
+Then run it using \verb|coffee server.coffee| or \verb|nodemon server.coffee| for automatic reloading during development.
+
+A JavaScript version can be compiled using \verb|coffee -c server.coffee|.
+
+
+\chapter{Usage}
+\label{chap:app:usage}
+\section{Command-line options}
+\begin{lstlisting}
+Usage: goblint [options] source-files
+Options
+    -v                        Prints more status information.                 
+    -o <file>                 Prints the output to file.                      
+    -I <dir>                  Add include directory.                          
+    -IK <dir>                 Add kernel include directory.                   
+
+    --help                    Prints this text                                
+    --version                 Print out current version information.          
+
+    --conf <file>             Merge the configuration from the <file>.        
+    --writeconf <file>        Write the effective configuration to <file>     
+    --set <jpath> <jvalue>    Set a configuration variable <jpath> to the specified <jvalue>.
+    --sets <jpath> <string>   Set a configuration variable <jpath> to the string.
+    --enable  <jpath>         Set a configuration variable <jpath> to true.   
+    --disable <jpath>         Set a configuration variable <jpath> to false.  
+
+    --print_options           Print out commonly used configuration variables.
+    --print_all_options       Print out all configuration variables.          
+
+A <jvalue> is a string from the JSON language where single-quotes (') are used instead of double-quotes (").
+
+A <jpath> is a path in a json structure. E.g. 'field.another_field[42]';
+in addition to the normal syntax you can use 'field[+]' append to an array.
+\end{lstlisting}
+
+
+\section{Generating a control flow graph}
+In order to generate a control flow graph do the following:
+\begin{lstlisting}
+./goblint --cfg test.c
+dot -Tpng cfg.dot -o cfg.png 
+\end{lstlisting}
+
+
+\section{Using the implemented analyses}
+\subsection{File handles}
+To use the file analysis on \verb|test.c| with HTML output in \verb|./result|:
+\begin{lstlisting}
+./goblint --sets ana.activated[0][+] file --sets result html test.c
+\end{lstlisting}
+
+\subsection{Specification}
+To use the spec analysis on \verb|test.c| with specification file \verb|test.spec|:
+\begin{lstlisting}
+./goblint --sets ana.activated[0][+] spec --sets spec.file test.spec --sets result html test.c
+\end{lstlisting}
+\paragraph*{Parser}
+The specification parser can be built and tested independent from Goblint. The following script compiles the parser and runs it on specification file \verb|$spec|. On failure, it starts the parser again in REPL-mode for testing.
+\begin{lstlisting}[language=bash]
+bin=src/mainspec.native
+spec=${1-"src/spec/file.spec"}
+ocamlbuild -yaccflag -v -X webapp -no-links -use-ocamlfind $bin \
+    && (./_build/$bin $spec \
+        || (echo "$spec failed, running interactive now...";
+            rlwrap ./_build/$bin
+           )
+       )
+\end{lstlisting}
+\paragraph*{Graph}
+The parser saves a graph representing the specification to \verb|./result/graph.dot| by default (see \verb|src/spec/specUtil.ml|).
+To generate an image, the following could be used:
+\begin{lstlisting}
+dot -Tpng result/graph.dot -o graph.png 
+\end{lstlisting}

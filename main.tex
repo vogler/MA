@@ -14,33 +14,73 @@ Adding an own analysis
 
 \chapter{Verifying correct usage of file handles}
 \section{Common problems using files}
-The following examples for common problems served as a guideline for the implementation and contain comments that indicate where warnings would be output.
+The following examples for common problems served as a guideline for the implementation and contain comments starting with \verb|WARN: | that indicate where warnings would be output.
 
-\refListing{01-ok.c} shows opening a file \verb|test.txt| and appending the line "Testing..." to it. At the end the file is closed.
+\refListing{01-ok.c} shows opening a file \verb|log.txt| and appending the line "Testing..." to it. At the end the file is closed.
 \listingC{01-ok.c}{Everything fine?}
-This seems fine, but what happens if the file can't be written to?
+
+\paragraph*{fopen}
+This might seem fine, since the file will be created if it doesn't exist, but what happens if the file can't be written to?
+If the file exists but we don't have write access, running the code will result in a segmentation fault at \verb|fprintf|.
 We forgot to check the result of \verb|fopen| which returns an error code if the file couldn't be opened successfully.
-This case is handled by the implementation and can also be checked using the specification language. In this example warnings would be issued that the file handle might not be open after line 5.
+This case is handled by the implementation and can also be checked using the specification language. In this example warnings should be issued that the file handle might not be open after line 5.
 
+A corrected version could look like \refListing{01-ok-checked.c}.
+\listingC{01-ok-checked.c}{Success check for fopen}
 For brevity reasons a success check is omitted in the following examples and it's assumed that the file could be opened without errors. The specification version can be easily adjusted to conform to this by just replacing a few states, whereas the manual implementation would always warn about maybe unopened file handles.
-
-
-Not closing files is not necessarily an error since file handles are closed at the end of the program anyway, but it's not good practice and might lead to unwanted program behavior.
-Imagine a program that is done with a file but doesn't close it. If the program gets stuck in calculations or on user input, the file will still be locked and can't be used by other programs.
-
-\refListing{03-if-close.c} has comments for warnings that would be issued. There is a warning where the file was opened and a summary of unclosed files at the end of the program.
-\listingC{03-if-close.c}{Missing fclose}
 
 \refListing{04-no-open.c} shows what happens if the file handle was not opened before using it. When running the program, this leads to a segmentation fault.
 \listingC{04-no-open.c}{Missing fopen}
 
+\paragraph*{fclose}
+Not closing files is not necessarily an error since file handles are closed at the end of the program anyway, but it's not good practice and might lead to unwanted behavior.
+Imagine a program that is done writing important information to a file but doesn't close it. What happens if the program gets stuck in calculations or on user input and other programs want to use the file? See \refListing{01-user-input.c} for example. Without the call to \verb|fclose|, the written content might not be flushed until the program terminates. Running with some content in the file resulted in an empty file at the point of user input.
+\listingC{01-user-input.c}{Motivation for fclose: flushing}
+
+\refListing{03-no-close.c} has comments for warnings that would be issued. There is a warning where the file was opened and a summary of unclosed files at the end of the program.
+\listingC{03-no-close.c}{Missing fclose}
+
+\paragraph*{fprintf}
 Writing to a file which is opened read-only as demonstrated in \refListing{05-open-mode.c} is another problem. Bugs of this kind might be hard to find, since this executes without errors - there is just nothing written to the file.
 \listingC{05-open-mode.c}{Wrong open mode}
 
+Other functions like \verb|fscanf, fputc, fgetc, fwrite, fread| are not analyzed, since the problems are similar to \verb|fprintf|.
 
 
 \section{A domain for representing file handle usage}
-Must/May []
+Since the program behavior is merely approximated, one has to differentiate between information that may or must be true. For illustration May- and Must-Sets with their corresponding join operation and the meaning of the empty set are described below.
+\begin{description}
+\item[Must-Set] Property must be true for all elements, but not all elements with the property must be in the set. $\sqcap = \cap$, $\emptyset = \top$.
+\item[May-Set] Property may be true or not for each element, but all elements for which  it is true must be in the set. $\sqcap = \cup$, $\emptyset = \bot$.
+\end{description}
+If the sets contain elements we want to warn about, then the difference concerning warnings is described below.
+\begin{description}
+\item[Must-Set] Precision: every warning is an error, but the program may still have errors.
+\item[May-Set] Soundness: there might be false positives, but if there are no warnings, then the program is error-free.
+\end{description}
+
+Since it should be possible to track multiple file handles, a map \textbf{M} from variables (or better LValues) \textbf{K} to another domain \textbf{V} is needed. The bottom value for \textbf{M} is the empty map.
+The domain \textbf{V} represents one file handle. \refListing{fileDomainType.ml} shows how its type \verb|t| is defined.
+\listingML{fileDomainType.ml}{Type of the file handle domain}
+\begin{description}
+\item[t'] Must and May don't correspond to the sets from above but describe something different here. As long as the file handle is safely described, \verb|Must ...| is used. As soon as there might be multiple possible records, \verb|May ...| is used. There are some special cases which we will come to later.
+
+\item[record] contains the variable \verb|var| that was used as a key, the location stack \verb|loc| and \verb|state|.
+
+\item[state] can be \verb|Open(filename, mode)| or \verb|Close|.
+
+\item[mode] can be \verb|Read| for file open modes \verb|r| or \verb|Write| for modes \verb|w|.
+
+\item[loc] is a stack of locations from the assignment to \verb|var| down to the use of the stdio-function. It is maintained as a special value inside \textbf{M}. On entering a function, the location of the call site is pushed, and popped again when leaving the function.
+Example for loc!
+\end{description}
+
+Special cases: May [] = bot, May [x]: really may (fp changed etc.), May [a, b, c]: a or b or c
+-> examples:
+	closed at 3 or 6 -> closed!
+	opened for read or write -> opened
+
+
 
 \section{An analysis for checking file handle usage}
 
@@ -59,6 +99,14 @@ More sane/human-readable.
 
 
 \chapter{Example use cases}
+%http://smallcultfollowing.com/babysteps/pubs/2013.07.17-NEU.pdf
+%What Rust doesn’t have...
+%– Null pointers
+%– Dangling pointers
+%– Segmentation faults
+%– Data races
+%– Mandatory GC
+
 \section{File handles redux}
 
 \section{Locks}

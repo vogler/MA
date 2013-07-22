@@ -23,10 +23,7 @@ The main use case for Goblint is race detection in multi-threaded C programs. Al
 % - Goblint-Fakten: Tests, Benchmarks, Linux-Kernel komplett analysiert > gefundene Races?
 Goblint has been tested on parts of the Linux kernel and is sufficiently efficient to be used for race-detection of multi-threaded programs up to about 25 thousand lines of code \cite{Vojdani10Thesis,goblint.pdf}.
 
-% floats, OSEK, OpIAT
-Within the scope of the OpIAT project \cite{opiat}, Goblint is used for interprocedural analysis of programs with dynamic thread-creation, especially value analysis in OSEK\footnote{OSEK-OS is a real-time operating system for embedded components, mainly for automotive applications.} programs, for which the handling of floats would be useful.
-
-There is also an Eclipse plug-in that displays the results of the analysis in a view and adds warning markers for places in the code where a data race might occur. A screenshot can be seen in \refFigure{screenshot_eclipse}.
+In addition to XML, JSON and HTML output, there is also an Eclipse plug-in that displays the results of the analysis in a view and adds warning markers for places in the code where a data race might occur. A screenshot can be seen in \refFigure{screenshot_eclipse}.
 
 Information on how to setup Goblint can be found on its homepage\footnote{\url{http://goblint.in.tum.de}}.
 
