@@ -25,24 +25,24 @@ If the file exists but we don't have write access, running the code will result 
 We forgot to check the result of \verb|fopen| which returns an error code if the file couldn't be opened successfully.
 This case is handled by the implementation and can also be checked using the specification language. In this example warnings should be issued that the file handle might not be open after line 5.
 
-A corrected version could look like \refListing{01-ok-checked.c}.
-\listingC{01-ok-checked.c}{Success check for fopen}
+A corrected version could look like \refListing{02-ok-checked.c}.
+\listingC{02-ok-checked.c}{Success check for fopen}
 For brevity reasons a success check is omitted in the following examples and it's assumed that the file could be opened without errors. The specification version can be easily adjusted to conform to this by just replacing a few states, whereas the manual implementation would always warn about maybe unopened file handles.
 
-\refListing{04-no-open.c} shows what happens if the file handle was not opened before using it. When running the program, this leads to a segmentation fault.
-\listingC{04-no-open.c}{Missing fopen}
+\refListing{03-no-open.c} shows what happens if the file handle was not opened before using it. When running the program, this leads to a segmentation fault.
+\listingC{03-no-open.c}{Missing fopen}
 
 \paragraph*{fclose}
 Not closing files is not necessarily an error since file handles are closed at the end of the program anyway, but it's not good practice and might lead to unwanted behavior.
-Imagine a program that is done writing important information to a file but doesn't close it. What happens if the program gets stuck in calculations or on user input and other programs want to use the file? See \refListing{01-user-input.c} for example. Without the call to \verb|fclose|, the written content might not be flushed until the program terminates. Running with some content in the file resulted in an empty file at the point of user input.
-\listingC{01-user-input.c}{Motivation for fclose: flushing}
+Imagine a program that is done writing important information to a file but doesn't close it. What happens if the program gets stuck in calculations or on user input and other programs want to use the file? See \refListing{04-user-input.c} for example. Without the call to \verb|fclose|, the written content might not be flushed until the program terminates. Running with some content in the file resulted in an empty file at the point of user input.
+\listingC{04-user-input.c}{Motivation for fclose: flushing}
 
-\refListing{03-no-close.c} has comments for warnings that would be issued. There is a warning where the file was opened and a summary of unclosed files at the end of the program.
-\listingC{03-no-close.c}{Missing fclose}
+\refListing{05-no-close.c} has comments for warnings that would be issued. There is a warning where the file was opened and a summary of unclosed files at the end of the program.
+\listingC{05-no-close.c}{Missing fclose}
 
 \paragraph*{fprintf}
-Writing to a file which is opened read-only as demonstrated in \refListing{05-open-mode.c} is another problem. Bugs of this kind might be hard to find, since this executes without errors - there is just nothing written to the file.
-\listingC{05-open-mode.c}{Wrong open mode}
+Writing to a file which is opened read-only as demonstrated in \refListing{06-open-mode.c} is another problem. Bugs of this kind might be hard to find, since this executes without errors - there is just nothing written to the file.
+\listingC{06-open-mode.c}{Wrong open mode}
 
 Other functions like \verb|fscanf, fputc, fgetc, fwrite, fread| are not analyzed, since the problems are similar to \verb|fprintf|.
 
@@ -72,8 +72,14 @@ The domain \textbf{V} represents one file handle. \refListing{fileDomainType.ml}
 \item[mode] can be \verb|Read| if the file is opened read-only with mode \verb|r| or \verb|Write| for all other modes.
 
 \item[loc] is a stack of locations from the assignment to \verb|var| down to the use of the stdio-function. It is maintained as a special value inside \textbf{M}. On entering a function, the location of the call site is pushed, and popped again when leaving the function.
-Example for loc!
 \end{description}
+The location stack is kept because the location of the stdio-function might not always be the location where the warning should be issued. \refListing{07-location-stack.c} defines a custom function for opening files. The warnings should be placed at the call to this function instead of at the call to \verb|fopen|.
+% TODO does this work correctly??
+\listingC{07-location-stack.c}{Location of warning when using custom function for opening files}
+However, using a normal stack could lead to infinite ascending chains as shown in \refListing{08-location-stack-chain.c}. Once the uninitialized variable \verb|b| contains 0, the file will be opened. This normally happens pretty fast before overflowing the callstack. So the program runs fine, but the analysis would get stuck with an ever growing location stack. To avoid this, the location stack behaves as an ordered set, i.e. if a location is already contained in the stack, it won't be pushed. % TODO check code!
+\listingC{08-location-stack-chain.c}{Infinitely growing location stack}
+TODO: limitation:
+\listingC{09-location-stack-alternate.c}{Mutually recursive functions and the location stack}
 As mentioned above, there are some special cases concerning May-Sets:
 \begin{itemize}
 \item The empty set represents \textbf{V}'s bottom element: \verb|May {}| $ = \bot$
@@ -82,9 +88,17 @@ As mentioned above, there are some special cases concerning May-Sets:
 
 Even if the correct one is not known, these alternatives can be used to answer questions about the state during the analysis.
 
-Assume for example that the set contains records with the states \verb|Open(..., Read)| and \verb|Open(..., Write)|. In this case it is safe to say that the file is opened, if it is writable on the other hand is unknown. Another example: all states are \verb|Close| but with different locations.
+Assume for example that the set contains records with the states \verb|Open(..., Read)| and \verb|Open(..., Write)|. In this case it is safe to say that the file is opened - if it is writable on the other hand is unknown. Another example: all states are \verb|Close| but with different locations. %  TODO: is this ok for join? how is it done?
 \end{itemize}
-
+% describe join
+The join operation for \textbf{V} is the union of all records, with the exception of 1-element May-Sets which lead to the set itself:
+%\verb|join x y = {records of x}| $\cup$ \verb|{records of y}|.\\
+\begin{align*}
+join(x,y)=\left\{\begin{array}{cl}
+records(x), & \mbox{if }may(x) \wedge |records(x)|=1\\
+records(y), & \mbox{if }may(y) \wedge |records(y)|=1\\
+records(x) \cup records(y), & \mbox{else} \end{array}\right.
+\end{align*}
 
 
 \section{An analysis for checking file handle usage}
