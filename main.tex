@@ -59,11 +59,11 @@ If the sets contain elements we want to warn about, then the difference concerni
 \item[May-Set] Soundness: there might be false positives, but if there are no warnings, then the program is error-free.
 \end{description}
 
-Since it should be possible to track multiple file handles, a map \textbf{M} from variables (or better LValues) \textbf{K} to another domain \textbf{V} is needed. The bottom value for \textbf{M} is the empty map.
+Since it should be possible to track multiple file handles, a map \textbf{M} from variables (or better L-values) \textbf{K} to another domain \textbf{V} is needed. The bottom value for \textbf{M} is the empty map.
 The domain \textbf{V} represents one file handle. \refListing{fileDomainType.ml} shows how its type \verb|t| is defined.
 \listingML{fileDomainType.ml}{Type of the file handle domain}
 \begin{description}
-\item[t'] Must and May don't correspond to the sets from above but describe something different here. As long as the file handle is safely described, \verb|Must ...| is used. As soon as there might be multiple possible records, \verb|May ...| is used. There are some special cases which we will come to later.
+\item[t'] Must and May don't correspond to the sets from above but describe something different here. As long as the file handle is safely described, \verb|Must ...| is used. As soon as there might be multiple possible records, \verb|May ...| is used. There are some special cases though, which we will come to later.
 
 \item[record] contains the variable \verb|var| that was used as a key, the location stack \verb|loc| and \verb|state|.
 
@@ -74,11 +74,11 @@ The domain \textbf{V} represents one file handle. \refListing{fileDomainType.ml}
 \item[loc] is a stack of locations from the assignment to \verb|var| down to the use of the stdio-function. It is maintained as a special value inside \textbf{M}. On entering a function, the location of the call site is pushed, and popped again when leaving the function.
 \end{description}
 The location stack is kept because the location of the stdio-function might not always be the location where the warning should be issued. \refListing{07-location-stack.c} defines a custom function for opening files. The warnings should be placed at the call to this function instead of at the call to \verb|fopen|.
-% TODO does this work correctly??
+%TODO does this work correctly??
 \listingC{07-location-stack.c}{Location of warning when using custom function for opening files}
-However, using a normal stack could lead to infinite ascending chains as shown in \refListing{08-location-stack-chain.c}. Once the uninitialized variable \verb|b| contains 0, the file will be opened. This normally happens pretty fast before overflowing the callstack. So the program runs fine, but the analysis would get stuck with an ever growing location stack. To avoid this, the location stack behaves as an ordered set, i.e. if a location is already contained in the stack, it won't be pushed. % TODO check code!
+However, using a normal stack could lead to infinite strictly ascending chains as shown in \refListing{08-location-stack-chain.c}. Once the uninitialized variable \verb|b| contains 0, the file will be opened. This normally happens pretty fast before overflowing the callstack. So the program runs fine, but the analysis would get stuck with an ever growing location stack. To avoid this, the location stack behaves as an ordered set, i.e. if a location is already contained in the stack, it won't be pushed. %TODO check code!
 \listingC{08-location-stack-chain.c}{Infinitely growing location stack}
-TODO: limitation:
+TODO: limitation: %TODO
 \listingC{09-location-stack-alternate.c}{Mutually recursive functions and the location stack}
 As mentioned above, there are some special cases concerning May-Sets:
 \begin{itemize}
@@ -88,7 +88,7 @@ As mentioned above, there are some special cases concerning May-Sets:
 
 Even if the correct one is not known, these alternatives can be used to answer questions about the state during the analysis.
 
-Assume for example that the set contains records with the states \verb|Open(..., Read)| and \verb|Open(..., Write)|. In this case it is safe to say that the file is opened - if it is writable on the other hand is unknown. Another example: all states are \verb|Close| but with different locations. %  TODO: is this ok for join? how is it done?
+Assume for example that the set contains records with the states \verb|Open(..., Read)| and \verb|Open(..., Write)|. In this case it is safe to say that the file is opened - if it is writable on the other hand is unknown. Another example: all states are \verb|Close| but with different locations. %TODO is this ok for join? how is it done?
 \end{itemize}
 \refFigure{fileDomain} shows the ordering that is used.
 \begin{figure}[ht]
@@ -119,6 +119,48 @@ records(x) \cup records(y), & \mbox{else} \end{array}\right.
 
 
 \section{An analysis for checking file handle usage}
+The analysis uses the following transfer functions, which are called by the framework. The current context is kept in \verb|ctx|, \verb| D.t| is the type of the used domain, \verb| lval| (L-value), \verb|exp| (expression), \verb|fundec| (function declaration) and \verb|varinfo| (variable) are types from CIL.
+%\begin{lstlisting}[language=ML]
+%let assign ctx (lval:lval) (rval:exp) : D.t = ...
+%let branch ctx (exp:exp) (tv:bool) : D.t = ...
+%let body ctx (f:fundec) : D.t = ...
+%let return ctx (exp:exp option) (f:fundec) : D.t = ...
+%let enter ctx (lval: lval option) (f:varinfo) (args:exp list) : (D.t * D.t) list = ...
+%let combine ctx (lval:lval option) fexp (f:varinfo) (args:exp list) (au:D.t) : D.t = ...
+%let special ctx (lval: lval option) (f:varinfo) (arglist:exp list) : D.t = ...
+%\end{lstlisting}
+\begin{description}
+\item \inlineML{assign ctx (lval:lval) (rval:exp)}\\
+Assignment of an expression \verb|rval| to a L-value \verb|lval|.\\
+Warn about changed file pointer if \verb|lval| $\in$ \verb|D| and mark entry unsafe. %TODO
+
+\item \inlineML{branch ctx (exp:exp) (tv:bool)}\\
+Enter a branch where the condition \verb|exp| is either true or false, depending on \verb|tv|.\\
+Used to handle error-case of \verb|fopen|. If \verb|exp| compares an L-value \verb|lval| with an integer and the expression can be transformed into \verb|lval==0| with \verb|tv| being true, then remove \verb|lval| from the domain.
+
+\item \inlineML{body ctx (f:fundec)}\\
+Called when the body of a function is entered.
+
+\item \inlineML{return ctx (exp:exp option) (f:fundec)}\\
+Called once a function returns, \verb|exp| contains the expression if one is returned.\\
+If the returning function is \verb|main|, print out a summary of unclosed files if there are any.
+If a L-value is returned, save it as a special entry \verb|return_var| in the domain.
+Finally remove all formals and locals of the function from the domain.
+
+\item \inlineML{enter ctx (lval: lval option) (f:varinfo) (args:exp list)}\\
+Enter a function \verb|f| with arguments \verb|args| and the returned value optionally being saved to \verb|lval|.\\
+Save the current location to the location stack if the function is not \verb|main|.
+
+\item \inlineML{combine ctx (lval:lval option) fexp (f:varinfo) (args:exp list) (au:D.t)}Leave a function \verb|f| and combine the updated domain \verb|au| with the context of the call site. Counterpart to \verb|enter|.\\
+Pop the top element from the location stack. If \verb|return_val| is set and there is an \verb|lval| which is assigned to, save the entry \verb|return_val| points to with \verb|lval| as a new key in the domain.
+
+
+\item \inlineML{special ctx (lval: lval option) (f:varinfo) (arglist:exp list)}\\
+Called for functions that are not defined in the program.\\
+Add the current location to the location stack. Issue warnings and/or modify domain depending on \verb|lval| and the called function. The details are described below.
+\end{description}
+
+
 
 \section{Soundness vs. Precision}
 
