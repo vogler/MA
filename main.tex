@@ -90,8 +90,25 @@ Even if the correct one is not known, these alternatives can be used to answer q
 
 Assume for example that the set contains records with the states \verb|Open(..., Read)| and \verb|Open(..., Write)|. In this case it is safe to say that the file is opened - if it is writable on the other hand is unknown. Another example: all states are \verb|Close| but with different locations. %  TODO: is this ok for join? how is it done?
 \end{itemize}
+\refFigure{fileDomain} shows the ordering that is used.
+\begin{figure}[ht]
+  \centering
+\begin{tikzpicture}[]
+  \node (1) {May \{x\}};
+  \node [below of=1] (2) {May \{x, y, z ...\}};
+  \node [below of=2] (3) {Must \{x\}};
+  \node [below of=3] (4) {May \{\}};
+
+  \path[every node/.style={font=\sffamily\small}]
+    (1) edge node {} (2)
+    (2) edge node {} (3)
+    (3) edge node {} (4);
+\end{tikzpicture}
+  \caption{Ordering of the file domain}
+  \label{fig:fileDomain}
+\end{figure}\\
 % describe join
-The join operation for \textbf{V} is the union of all records, with the exception of 1-element May-Sets which lead to the set itself:
+The join operation for \textbf{V} is the union of all records, with the exception of 1-element May-Sets which lead to the set itself. The result is always a May-Set.
 %\verb|join x y = {records of x}| $\cup$ \verb|{records of y}|.\\
 \begin{align*}
 join(x,y)=\left\{\begin{array}{cl}
