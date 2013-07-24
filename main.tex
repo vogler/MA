@@ -161,7 +161,6 @@ Add the current location to the location stack. Issue warnings and/or modify dom
 \end{description}
 
 
-
 \section{Soundness vs. Precision}
 
 
@@ -171,6 +170,71 @@ Add the current location to the location stack. Issue warnings and/or modify dom
 \section{Representing the state of properties using an automaton}
 
 \section{Specification format}
+The basic structure of the specification format is modeled after the DOT graph description language (\refListing{example.dot} would yield the graph shown in \refFigure{dot-example}).
+\listingML{example.dot}{A digraph using the DOT graph description language}
+\graphic[scale=.7]{dot-example}{The graph produced by \refListing{example.dot}}
+A specification file contains two types of definitions: nodes and edges. The labels of nodes are output. The labels of edges are the constraints.
+
+\begin{description}
+\item[warnings]
+Nodes are used to define warnings and have an implicit back edge to the previous node if they are used as a target.
+Alternatively warnings can be specified like this: \verb|node1 -w1,w2,w3> node2 constraint| (\verb|w1|, \verb|w2| and \verb|w3| will be output when the transition is taken).
+
+\item[start node]
+The start node of the first transition is the start node of the automaton.
+
+\item[end nodes]
+End nodes are specified by \verb|node -> end _|.\\
+\verb|_end| is the local warning for nodes that are not in an end state, \verb|_END| is the warning at return of \verb|main| (\verb|$| can be used as a placeholder for the list of keys).
+
+\item[wildcard]
+An edge with \verb|_| as a constraint matches everything.
+
+\item[forwarding]
+Edges with \verb|->>| (or \verb|-w1,w2>>| etc.) are forwarding edges, which will continue matching the same statement for the target node.\\
+\end{description}
+The grammar for parsing the specification is shown below in a modified Backus-Naur-Form where the symbols $*, +, ?$ are used as in regular expressions. The implementation is based on the lexer and parser generators ocamllex and ocamlyacc. \verb|<string>| can be single- or double-quoted and quotes inside a string can be escaped with \verb|\|. Single- and multi-line comments are supported and already filtered out by the lexer.
+\begin{grammar}
+
+<file> ::= <definition> EOL \verb|/* definitions are seperated by line breaks */|
+\alt <definition> EOF
+\alt EOL
+\alt EOF
+
+<node> ::= <word> <ws>+ <string> \verb|/* word is [_0-9a-zA-Z], ws is whitespace */|
+
+<edge> ::= <word> <ws>* `-' (<word> (`,' <word>)*)? `>'? `>' <ws>* <word> <ws>+
+
+<definition> ::= <node>
+\alt <edge> <stmt>
+
+<stmt> ::= <var> `=' <expr>
+\alt <expr>
+
+<key> ::= `\$' <word>
+
+<var> ::= <key>
+\alt <identifier> \verb|/* e.g. foo, _foo, _1, but not 1a */|
+
+<regex> ::= `r' <string>
+
+<arguments> ::= <expr>
+\alt <arguments> `,' <expr>
+
+<binop> ::= `<' \alt `>' \alt `==' \alt `!=' \alt `<=' \alt `>=' \alt `+' \alt `-' \alt `*' \alt `/'
+
+<expr> ::= `(' <expr> `)'
+\alt <regex>
+\alt <string>
+\alt <bool> \verb|/* true or false|
+\alt <nexpr> \verb|/* omitted: numerical expressions are evaluated */|
+\alt <var>
+\alt <identifier> `(' <arguments> `)' \verb|/* function call */|
+\alt `_' \verb|wildcard|
+\alt <expr> <binop> <expr> \verb|/* omitted: numerical comparisons are evaluated */|
+
+\end{grammar}
+
 
 \section{Shortcuts for making the specification more concise}
 More sane/human-readable.
