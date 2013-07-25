@@ -5,10 +5,17 @@
 \chapter{Static analysis and Goblint}
 \section{Overview}
 
-\section{Theory}
+\section{Theory} %TODO
+TODO
+Knaster–Tarski theorem\\
+Kleene fixed-point theorem\\
+monotonic function f on complete partial order L -> f has least fix-point\\
+different possibilities for solving: kleene, round-robin\\
+Goblint uses recursive demand-driven solver -> query system to exchange results between analyses\\
+reachability analysis as an example with constraint system etc.\\
 
 \section{Getting started}
-Appendix: Setup
+Appendix: Setup\\
 Adding an own analysis
 
 
@@ -76,7 +83,7 @@ The domain \textbf{V} represents one file handle. \refListing{fileDomainType.ml}
 The location stack is kept because the location of the stdio-function might not always be the location where the warning should be issued. \refListing{07-location-stack.c} defines a custom function for opening files. The warnings should be placed at the call to this function instead of at the call to \verb|fopen|.
 %TODO does this work correctly??
 \listingC{07-location-stack.c}{Location of warning when using custom function for opening files}
-However, using a normal stack could lead to infinite strictly ascending chains as shown in \refListing{08-location-stack-chain.c}. Once the uninitialized variable \verb|b| contains 0, the file will be opened. This normally happens pretty fast before overflowing the callstack. So the program runs fine, but the analysis would get stuck with an ever growing location stack. To avoid this, the location stack behaves as an ordered set, i.e. if a location is already contained in the stack, it won't be pushed. %TODO check code!
+However, using a normal stack could lead to infinite strictly ascending chains as shown in \refListing{08-location-stack-chain.c}. Once the uninitialized variable \verb|b| contains 0, the file will be opened. This normally happens pretty fast before overflowing the call stack. So the program runs fine, but the analysis would get stuck with an ever growing location stack. To avoid this, the location stack behaves as an ordered set, i.e. if a location is already contained in the stack, it won't be pushed. %TODO check code!
 \listingC{08-location-stack-chain.c}{Infinitely growing location stack}
 TODO: limitation: %TODO
 \listingC{09-location-stack-alternate.c}{Mutually recursive functions and the location stack}
@@ -165,14 +172,55 @@ Add the current location to the location stack. Issue warnings and/or modify dom
 
 
 \chapter{A general specification for regular safety properties}
-\section{Interesting types of constraints}
+%\section{Interesting types of constraints}
 
 \section{Representing the state of properties using an automaton}
 
+
 \section{Specification format}
-The basic structure of the specification format is modeled after the DOT graph description language (\refListing{example.dot} would yield the graph shown in \refFigure{dot-example}).
+The basic structure of the specification format is modeled after the DOT graph description language (\refListing{example.dot} would yield the graph shown in \refFigure{dot-example} (generated using \verb|dot2tex|)).
 \listingML{example.dot}{A digraph using the DOT graph description language}
-\graphic[scale=.7]{dot-example}{The graph produced by \refListing{example.dot}}
+%\graphic[scale=.7]{dot-example}{The graph produced by \refListing{example.dot}}
+\begin{figure}[ht]
+  \centering
+\begin{tikzpicture}[>=latex',line join=bevel,]
+  \pgfsetlinewidth{1bp}
+%%
+\pgfsetcolor{black}
+  % Edge: a -> b
+  \draw [->] (61.912bp,88.824bp) .. controls (55.705bp,76.411bp) and (47.016bp,59.031bp)  .. (35.198bp,35.396bp);
+  \definecolor{strokecol}{rgb}{0.0,0.0,0.0};
+  \pgfsetstrokecolor{strokecol}
+  \draw (71bp,62bp) node {step1()};
+  % Edge: a -> c
+  \draw [->] (80.606bp,89.275bp) .. controls (84.407bp,83.351bp) and (88.592bp,76.479bp)  .. (92bp,70bp) .. controls (96.149bp,62.112bp) and (100.17bp,53.273bp)  .. (107.5bp,35.839bp);
+  \draw (118bp,62bp) node {step2()};
+  % Node: a
+\begin{scope}
+  \definecolor{strokecol}{rgb}{0.0,0.0,0.0};
+  \pgfsetstrokecolor{strokecol}
+  \draw (70bp,106bp) ellipse (27bp and 18bp);
+  \draw (70bp,106bp) node {a};
+\end{scope}
+  % Node: c
+\begin{scope}
+  \definecolor{strokecol}{rgb}{0.0,0.0,0.0};
+  \pgfsetstrokecolor{strokecol}
+  \draw (114bp,18bp) ellipse (42bp and 18bp);
+  \draw (114bp,18bp) node {Warning};
+\end{scope}
+  % Node: b
+\begin{scope}
+  \definecolor{strokecol}{rgb}{0.0,0.0,0.0};
+  \pgfsetstrokecolor{strokecol}
+  \draw (27bp,18bp) ellipse (27bp and 18bp);
+  \draw (27bp,18bp) node {b};
+\end{scope}
+%
+\end{tikzpicture}
+  \caption{The graph produced by \refListing{example.dot}}
+  \label{fig:dot-example}
+\end{figure}
 A specification file contains two types of definitions: nodes and edges. The labels of nodes are output. The labels of edges are the constraints.
 
 \begin{description}
