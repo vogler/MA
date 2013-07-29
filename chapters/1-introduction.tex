@@ -18,7 +18,7 @@ One way of testing is to execute the program. This is called dynamic analysis. I
 % http://www.di.ens.fr/~cousot/Equipeabsint-eg.shtml
 Goblint does sound, static analysis, which uses abstract interpretation to approximate the semantics of a program. Static means that it is able to approximate the run-time behavior of the program without having to execute it. Sound means that the absence of errors - in contrast to dynamic analysis - \textit{can} be proven. This is especially important for the verification of properties in safety-critical applications like medical software or software for planes, launchers, reactors and so on.
 
-The main use case for Goblint is race detection in multi-threaded C programs. Although C is more and more replaced by languages like Java and C\#, it is still one of the most widely used programming languages and is dominant in implementing system software (e.g. Linux kernel) and in embedded applications. With the rise of multi-core architectures, multi-threading has also become more important.
+The main use case for Goblint is race detection in multi-threaded C programs. Although C is more and more replaced by higher level languages like Java and C\#, it is still one of the most widely used programming languages and is dominant in implementing system software (e.g. Linux kernel) and in embedded applications. With the rise of multi-core architectures, multi-threading has also become more important.
 
 % - Goblint-Fakten: Tests, Benchmarks, Linux-Kernel komplett analysiert > gefundene Races?
 Goblint has been tested on parts of the Linux kernel and is sufficiently efficient to be used for race-detection of multi-threaded programs up to about 25 thousand lines of code \cite{Vojdani10Thesis,goblint.pdf}.

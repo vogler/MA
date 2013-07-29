@@ -10,7 +10,7 @@ TODO
 Knaster–Tarski theorem\\
 Kleene fixed-point theorem\\
 monotonic function f on complete partial order L -> f has least fix-point\\
-different possibilities for solving: kleene, round-robin\\
+different possibilities for solving: kleene, round-robin, work-list\\
 Goblint uses recursive demand-driven solver -> query system to exchange results between analyses\\
 reachability analysis as an example with constraint system etc.\\
 
@@ -20,36 +20,37 @@ Adding an own analysis
 
 
 \chapter{Verifying correct usage of file handles}
+\label{chap:file}
 \section{Common problems using files}
 The following examples for common problems served as a guideline for the implementation and contain comments starting with \verb|WARN: | that indicate where warnings would be output.
 
 \refListing{01-ok.c} shows opening a file \verb|log.txt| and appending the line "Testing..." to it. At the end the file is closed.
-\listingC{01-ok.c}{Everything fine?}
+\listingC{01-ok.c}{Append text to file. Everything fine?}
 
 \paragraph*{fopen}
 This might seem fine, since the file will be created if it doesn't exist, but what happens if the file can't be written to?
 If the file exists but we don't have write access, running the code will result in a segmentation fault at \verb|fprintf|.
 We forgot to check the result of \verb|fopen| which returns an error code if the file couldn't be opened successfully.
-This case is handled by the implementation and can also be checked using the specification language. In this example warnings should be issued that the file handle might not be open after line 5.
+This case is handled by the manual implementation and can also be checked using the specification language. In this example warnings should be issued that the file handle might not be open after line 5.
 
 A corrected version could look like \refListing{02-ok-checked.c}.
 \listingC{02-ok-checked.c}{Success check for fopen}
-For brevity reasons a success check is omitted in the following examples and it's assumed that the file could be opened without errors. The specification version can be easily adjusted to conform to this by just replacing a few states, whereas the manual implementation would always warn about maybe unopened file handles.
+For brevity reasons a success check is omitted in the following examples and it's assumed that the file could be opened without errors. The specification version can be easily adjusted to conform to this by just replacing a few states, whereas the manual implementation would always warn about maybe unopened file handles, unless the option \inlineML{file.optimistic} is set to \inlineML{true}.
 
 \refListing{03-no-open.c} shows what happens if the file handle was not opened before using it. When running the program, this leads to a segmentation fault.
 \listingC{03-no-open.c}{Missing fopen}
 
 \paragraph*{fclose}
 Not closing files is not necessarily an error since file handles are closed at the end of the program anyway, but it's not good practice and might lead to unwanted behavior.
-Imagine a program that is done writing important information to a file but doesn't close it. What happens if the program gets stuck in calculations or on user input and other programs want to use the file? See \refListing{04-user-input.c} for example. Without the call to \verb|fclose|, the written content might not be flushed until the program terminates. Running with some content in the file resulted in an empty file at the point of user input.
-\listingC{04-user-input.c}{Motivation for fclose: flushing}
+Imagine a program that is done writing important information to a file but doesn't close it. What happens if the program gets stuck in calculations or on user input and other programs want to use the file? See \refListing{04-user-input.c} for example. Without the call to \verb|fclose|, the written content might not be flushed until the program terminates. Starting with some content in the file resulted in an empty file at the point of user input.
+\listingC{04-user-input.c}{A reason for closing files: flushing}
 
 \refListing{05-no-close.c} has comments for warnings that would be issued. There is a warning where the file was opened and a summary of unclosed files at the end of the program.
 \listingC{05-no-close.c}{Missing fclose}
 
 \paragraph*{fprintf}
 Writing to a file which is opened read-only as demonstrated in \refListing{06-open-mode.c} is another problem. Bugs of this kind might be hard to find, since this executes without errors - there is just nothing written to the file.
-\listingC{06-open-mode.c}{Wrong open mode}
+\listingC{06-open-mode.c}{Wrong open mode: writing to a read-only file}
 
 Other functions like \verb|fscanf, fputc, fgetc, fwrite, fread| are not analyzed, since the problems are similar to \verb|fprintf|.
 
@@ -97,7 +98,7 @@ Even if the correct one is not known, these alternatives can be used to answer q
 
 Assume for example that the set contains records with the states \verb|Open(..., Read)| and \verb|Open(..., Write)|. In this case it is safe to say that the file is opened - if it is writable on the other hand is unknown. Another example: all states are \verb|Close| but with different locations. %TODO is this ok for join? how is it done?
 \end{itemize}
-\refFigure{fileDomain} shows the ordering that is used.
+\refFigure{fileDomain} shows the ordering that is used. May-Sets with length $n$ are greater than those of length $m$ iff $1<m<n$.
 \begin{figure}[ht]
   \centering
 \begin{tikzpicture}[]
@@ -111,7 +112,7 @@ Assume for example that the set contains records with the states \verb|Open(...,
     (2) edge node {} (3)
     (3) edge node {} (4);
 \end{tikzpicture}
-  \caption{Ordering of the file domain}
+  \caption{Partial order of the file domain}
   \label{fig:fileDomain}
 \end{figure}\\
 % describe join
@@ -218,7 +219,7 @@ The basic structure of the specification format is modeled after the DOT graph d
 \end{scope}
 %
 \end{tikzpicture}
-  \caption{The graph produced by \refListing{example.dot}}
+  \caption{The DOT graph produced by \refListing{example.dot}}
   \label{fig:dot-example}
 \end{figure}
 A specification file contains two types of definitions: nodes and edges. The labels of nodes are output. The labels of edges are the constraints.
@@ -236,10 +237,10 @@ End nodes are specified by \verb|node -> end _|.\\
 \verb|_end| is the local warning for nodes that are not in an end state, \verb|_END| is the warning at return of \verb|main| (\verb|$| can be used as a placeholder for the list of keys).
 
 \item[wildcard]
-An edge with \verb|_| as a constraint matches everything.
+An edge with \verb|_| as a constraint matches everything. Wildcards can also be used inside expressions.
 
 \item[forwarding]
-Edges with \verb|->>| (or \verb|-w1,w2>>| etc.) are forwarding edges, which will continue matching the same statement for the target node.\\
+Edges with a two-headed arrow like \verb|->>| (or \verb|-w1,w2>>| etc.) are forwarding edges, which will continue matching the same statement for the target node.\\
 \end{description}
 The grammar for parsing the specification is shown below in a modified Backus-Naur-Form where the symbols $*, +, ?$ are used as in regular expressions. The implementation is based on the lexer and parser generators ocamllex and ocamlyacc. \verb|<string>| can be single- or double-quoted and quotes inside a string can be escaped with \verb|\|. Single- and multi-line comments are supported and already filtered out by the lexer.
 \begin{grammar}
@@ -274,19 +275,23 @@ The grammar for parsing the specification is shown below in a modified Backus-Na
 <expr> ::= `(' <expr> `)'
 \alt <regex>
 \alt <string>
-\alt <bool> \verb|/* true or false|
+\alt <bool> \verb|/* true or false */|
 \alt <nexpr> \verb|/* omitted: numerical expressions are evaluated */|
 \alt <var>
 \alt <identifier> `(' <arguments> `)' \verb|/* function call */|
-\alt `_' \verb|wildcard|
+\alt `_' \verb|/* wildcard */|
 \alt <expr> <binop> <expr> \verb|/* omitted: numerical comparisons are evaluated */|
 
 \end{grammar}
 
 
 \section{Shortcuts for making the specification more concise}
-More sane/human-readable.
+TODO More sane/human-readable. %TODO
+Even for something rather small like the file handle example, the automaton can become very big and hard to read for humans.
 
+In order to avoid redundant parts, forwarding is supported. Forwarding edges are displayed as dotted lines in the generated graphs and can also contain constraints. If such an edge is taken, the current input is again evaluated in the target state.
+
+Another feature are wildcards. When in a state, pattern matching is done on the constraints. Wildcards can be used anywhere, e.g. as a function argument or as a last constraint which always matches.
 
 \chapter{Example use cases}
 %http://smallcultfollowing.com/babysteps/pubs/2013.07.17-NEU.pdf
@@ -298,6 +303,14 @@ More sane/human-readable.
 %– Mandatory GC
 
 \section{File handles redux}
+\refListing{../file.spec} shows a specification for file handles like implemented in \refChapter{file}. It is optimistic about \verb|fopen|, i.e. there are no warnings for missing success checks.
+\listingC{../file.spec}{An optimistic specification for file handle usage}
+
+The resulting graph can be seen in \refFigure{file}. %TODO
+TODO format differently
+\begin{landscape}
+\graphic{file}{Automaton for optimistic file handle usage}
+\end{landscape}
 
 \section{Locks}
 Different kinds of locks + table of functions for them.
