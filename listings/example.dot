@@ -1,5 +1,0 @@
-digraph graphname {
-	c [label="Warning"]
-	a -> b [label="step1()"];
-	a -> c [label="step2()"];
-}

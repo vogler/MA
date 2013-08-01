@@ -78,16 +78,21 @@ dot -Tpng cfg.dot -o cfg.png
 
 
 \section{Using the implemented analyses}
+\label{sec:app:use_ana}
 \subsection{File handles}
 To use the file analysis on \verb|test.c| with HTML output in \verb|./result|:
 \begin{lstlisting}
 ./goblint --sets ana.activated[0][+] file --sets result html test.c
 \end{lstlisting}
+The analysis can be configured to be optimistic about opening files. If this option is set to \verb|true|, calls to \verb|fopen| will be assumed to never fail:
+\begin{lstlisting}
+./goblint --sets ana.activated[0][+] file --set ana.file.optimistic true --sets result html test.c
+\end{lstlisting}
 
 \subsection{Specification}
 To use the spec analysis on \verb|test.c| with specification file \verb|test.spec|:
 \begin{lstlisting}
-./goblint --sets ana.activated[0][+] spec --sets spec.file test.spec --sets result html test.c
+./goblint --sets ana.activated[0][+] spec --sets ana.spec.file test.spec --sets result html test.c
 \end{lstlisting}
 \paragraph*{Parser}
 The specification parser can be built and tested independent from Goblint. The following script compiles the parser and runs it on specification file \verb|$spec|. On failure, it starts the parser again in REPL-mode for testing.

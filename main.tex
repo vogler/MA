@@ -27,7 +27,7 @@ The following examples for common problems served as a guideline for the impleme
 \refListing{01-ok.c} shows opening a file \verb|log.txt| and appending the line "Testing..." to it. At the end the file is closed.
 \listingC{01-ok.c}{Append text to file. Everything fine?}
 
-\paragraph*{fopen}
+\paragraph*{Opening files}
 This might seem fine, since the file will be created if it doesn't exist, but what happens if the file can't be written to?
 If the file exists but we don't have write access, running the code will result in a segmentation fault at \verb|fprintf|.
 We forgot to check the result of \verb|fopen| which returns an error code if the file couldn't be opened successfully.
@@ -35,12 +35,11 @@ This case is handled by the manual implementation and can also be checked using 
 
 A corrected version could look like \refListing{02-ok-checked.c}.
 \listingC{02-ok-checked.c}{Success check for fopen}
-For brevity reasons a success check is omitted in the following examples and it's assumed that the file could be opened without errors. The specification version can be easily adjusted to conform to this by just replacing a few states, whereas the manual implementation would always warn about maybe unopened file handles, unless the option \inlineML{file.optimistic} is set to \inlineML{true}.
-
+For brevity reasons a success check is omitted in the following examples and it's assumed that the file could be opened without errors. The specification version can be easily adjusted to conform to this by just replacing a few states, whereas the manual implementation would always warn about maybe unopened file handles, unless the option \inlineML{ana.file.optimistic} is set to \inlineML{true}, in which case the analysis will assume opening files never fails (see \refSection{app:use_ana} on how to set options).
 \refListing{03-no-open.c} shows what happens if the file handle was not opened before using it. When running the program, this leads to a segmentation fault.
 \listingC{03-no-open.c}{Missing fopen}
 
-\paragraph*{fclose}
+\paragraph*{Closing files}
 Not closing files is not necessarily an error since file handles are closed at the end of the program anyway, but it's not good practice and might lead to unwanted behavior.
 Imagine a program that is done writing important information to a file but doesn't close it. What happens if the program gets stuck in calculations or on user input and other programs want to use the file? See \refListing{04-user-input.c} for example. Without the call to \verb|fclose|, the written content might not be flushed until the program terminates. Starting with some content in the file resulted in an empty file at the point of user input.
 \listingC{04-user-input.c}{A reason for closing files: flushing}
@@ -48,7 +47,7 @@ Imagine a program that is done writing important information to a file but doesn
 \refListing{05-no-close.c} has comments for warnings that would be issued. There is a warning where the file was opened and a summary of unclosed files at the end of the program.
 \listingC{05-no-close.c}{Missing fclose}
 
-\paragraph*{fprintf}
+\paragraph*{Open mode}
 Writing to a file which is opened read-only as demonstrated in \refListing{06-open-mode.c} is another problem. Bugs of this kind might be hard to find, since this executes without errors - there is just nothing written to the file.
 \listingC{06-open-mode.c}{Wrong open mode: writing to a read-only file}
 
@@ -63,7 +62,7 @@ Since the program behavior is merely approximated, one has to differentiate betw
 \end{description}
 If the sets contain elements we want to warn about, then the difference concerning warnings is described below.
 \begin{description}
-\item[Must-Set] Precision: every warning is an error, but the program may still have errors.
+\item[Must-Set] Precision: every warning is an error, but the program may still have other errors.
 \item[May-Set] Soundness: there might be false positives, but if there are no warnings, then the program is error-free.
 \end{description}
 
@@ -71,7 +70,7 @@ Since it should be possible to track multiple file handles, a map \textbf{M} fro
 The domain \textbf{V} represents one file handle. \refListing{fileDomainType.ml} shows how its type \verb|t| is defined.
 \listingML{fileDomainType.ml}{Type of the file handle domain}
 \begin{description}
-\item[t'] Must and May don't correspond to the sets from above but describe something different here. As long as the file handle is safely described, \verb|Must ...| is used. As soon as there might be multiple possible records, \verb|May ...| is used. There are some special cases though, which we will come to later.
+\item[t] Must and May don't correspond to the sets from above but describe something different here. As long as the file handle is safely described, \verb|Must ...| is used. As soon as there might be multiple possible records, \verb|May ...| is used. There are some special cases though, which we will come to later.
 
 \item[record] contains the variable \verb|var| that was used as a key, the location stack \verb|loc| and \verb|state|.
 
@@ -179,50 +178,7 @@ Add the current location to the location stack. Issue warnings and/or modify dom
 
 
 \section{Specification format}
-The basic structure of the specification format is modeled after the DOT graph description language (\refListing{example.dot} would yield the graph shown in \refFigure{dot-example} (generated using \verb|dot2tex|)).
-\listingML{example.dot}{A digraph using the DOT graph description language}
-%\graphic[scale=.7]{dot-example}{The graph produced by \refListing{example.dot}}
-\begin{figure}[ht]
-  \centering
-\begin{tikzpicture}[>=latex',line join=bevel,]
-  \pgfsetlinewidth{1bp}
-%%
-\pgfsetcolor{black}
-  % Edge: a -> b
-  \draw [->] (61.912bp,88.824bp) .. controls (55.705bp,76.411bp) and (47.016bp,59.031bp)  .. (35.198bp,35.396bp);
-  \definecolor{strokecol}{rgb}{0.0,0.0,0.0};
-  \pgfsetstrokecolor{strokecol}
-  \draw (71bp,62bp) node {step1()};
-  % Edge: a -> c
-  \draw [->] (80.606bp,89.275bp) .. controls (84.407bp,83.351bp) and (88.592bp,76.479bp)  .. (92bp,70bp) .. controls (96.149bp,62.112bp) and (100.17bp,53.273bp)  .. (107.5bp,35.839bp);
-  \draw (118bp,62bp) node {step2()};
-  % Node: a
-\begin{scope}
-  \definecolor{strokecol}{rgb}{0.0,0.0,0.0};
-  \pgfsetstrokecolor{strokecol}
-  \draw (70bp,106bp) ellipse (27bp and 18bp);
-  \draw (70bp,106bp) node {a};
-\end{scope}
-  % Node: c
-\begin{scope}
-  \definecolor{strokecol}{rgb}{0.0,0.0,0.0};
-  \pgfsetstrokecolor{strokecol}
-  \draw (114bp,18bp) ellipse (42bp and 18bp);
-  \draw (114bp,18bp) node {Warning};
-\end{scope}
-  % Node: b
-\begin{scope}
-  \definecolor{strokecol}{rgb}{0.0,0.0,0.0};
-  \pgfsetstrokecolor{strokecol}
-  \draw (27bp,18bp) ellipse (27bp and 18bp);
-  \draw (27bp,18bp) node {b};
-\end{scope}
-%
-\end{tikzpicture}
-  \caption{The DOT graph produced by \refListing{example.dot}}
-  \label{fig:dot-example}
-\end{figure}
-A specification file contains two types of definitions: nodes and edges. The labels of nodes are output. The labels of edges are the constraints.
+A specification file contains two types of definitions: nodes and edges. Nodes can be defined implicitly through edges or explicitly. The labels of explicitly defined nodes are output. The labels of edges are constraints.
 
 \begin{description}
 \item[warnings]
@@ -291,7 +247,7 @@ Even for something rather small like the file handle example, the automaton can 
 
 In order to avoid redundant parts, forwarding is supported. Forwarding edges are displayed as dotted lines in the generated graphs and can also contain constraints. If such an edge is taken, the current input is again evaluated in the target state.
 
-Another feature are wildcards. When in a state, pattern matching is done on the constraints. Wildcards can be used anywhere, e.g. as a function argument or as a last constraint which always matches.
+Another feature are wildcards. In each state pattern matching is done on the constraints and the transistion of the first matching constraint is taken. Wildcards can be used anywhere, e.g. as a function argument or as a last constraint which always matches.
 
 \chapter{Example use cases}
 %http://smallcultfollowing.com/babysteps/pubs/2013.07.17-NEU.pdf
