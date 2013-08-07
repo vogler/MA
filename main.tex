@@ -2,11 +2,7 @@
 
 
 
-\chapter{Static analysis and Goblint}
-\section{Overview}
-
-\section{Theory} %TODO
-TODO
+\chapter{Static analysis and Goblint} %TODO
 Knaster–Tarski theorem\\
 Kleene fixed-point theorem\\
 monotonic function f on complete partial order L -> f has least fix-point\\
@@ -14,9 +10,18 @@ different possibilities for solving: kleene, round-robin, work-list\\
 Goblint uses recursive demand-driven solver -> query system to exchange results between analyses\\
 reachability analysis as an example with constraint system etc.\\
 
-\section{Getting started}
-Appendix: Setup\\
-Adding an own analysis
+\section{Soundness vs. precision}
+Since the program behavior is merely approximated, one has to differentiate between information that may or must be true. For illustration May- and Must-Sets with their corresponding join operation and the meaning of the empty set are described below.
+\begin{description}
+\item[Must-Set] Property must be true for all elements, but not all elements with the property must be in the set. $\sqcap = \cap$, $\emptyset = \top$.
+\item[May-Set] Property may be true or not for each element, but all elements for which  it is true must be in the set. $\sqcap = \cup$, $\emptyset = \bot$.
+\end{description}
+If the sets contain elements we want to warn about, then the difference is
+\begin{description}
+\item[Must-Set] Precision: every warning is an error, but the program may still have other errors.
+\item[May-Set] Soundness: there might be false positives, but if there are no warnings, then the program is error-free.
+\end{description}
+The Must-Set is precise but maybe unsound and the May-Set is sound but maybe not very precise.
 
 
 \chapter{Verifying correct usage of file handles}
@@ -55,78 +60,79 @@ Other functions like \verb|fscanf, fputc, fgetc, fwrite, fread| are not analyzed
 
 
 \section{A domain for representing file handle usage}
-Since the program behavior is merely approximated, one has to differentiate between information that may or must be true. For illustration May- and Must-Sets with their corresponding join operation and the meaning of the empty set are described below.
-\begin{description}
-\item[Must-Set] Property must be true for all elements, but not all elements with the property must be in the set. $\sqcap = \cap$, $\emptyset = \top$.
-\item[May-Set] Property may be true or not for each element, but all elements for which  it is true must be in the set. $\sqcap = \cup$, $\emptyset = \bot$.
-\end{description}
-If the sets contain elements we want to warn about, then the difference concerning warnings is described below.
-\begin{description}
-\item[Must-Set] Precision: every warning is an error, but the program may still have other errors.
-\item[May-Set] Soundness: there might be false positives, but if there are no warnings, then the program is error-free.
-\end{description}
+
 
 Since it should be possible to track multiple file handles, a map \textbf{M} from variables (or better L-values) \textbf{K} to another domain \textbf{V} is needed. The bottom value for \textbf{M} is the empty map.
 The domain \textbf{V} represents one file handle. \refListing{fileDomainType.ml} shows how its type \verb|t| is defined.
 \listingML{fileDomainType.ml}{Type of the file handle domain}
 \begin{description}
-\item[t] Must and May don't correspond to the sets from above but describe something different here. As long as the file handle is safely described, \verb|Must ...| is used. As soon as there might be multiple possible records, \verb|May ...| is used. There are some special cases though, which we will come to later.
+\item[t] is a tuple consisting of a Must- and a May-Set of records.
 
 \item[record] contains the variable \verb|var| that was used as a key, the location stack \verb|loc| and \verb|state|.
 
-\item[state] can be \verb|Open(filename, mode)| or \verb|Close|.
+\item[state] can be \verb|Open(filename, mode)|, \verb|Closed| or \verb|Error| (used for the error-branch of \verb|fopen|).
 
 \item[mode] can be \verb|Read| if the file is opened read-only with mode \verb|r| or \verb|Write| for all other modes.
 
 \item[loc] is a stack of locations from the assignment to \verb|var| down to the use of the stdio-function. It is maintained as a special value inside \textbf{M}. On entering a function, the location of the call site is pushed, and popped again when leaving the function.
 \end{description}
+Each key \textit{must} have at most one state but \textit{may} have at least one state.
+In other words: the Must-Set starts with one element and can only shrink to zero elements; the May-Set also starts with one element and can only grow.
+Although the Must-Set could be replaced by a more efficient type, it is easier to work with sets for both.
+
+Assume the Must-Set is empty and the May-Set contains multiple elements. Even if the correct state is not known, these alternatives can be used to answer questions about the state during the analysis.
+
+As an example let the May-Set contain records with the states \verb|Open(..., Read)| and \verb|Open(..., Write)|. In this case it is safe to say that the file is opened - if it is writable on the other hand is unknown. Another example: if all states are \verb|Closed| but with different locations, it is safe to say that the file is closed. %TODO is this ok for join? how is it done?
+
+Since an empty May-Set would never occur, we can use it to encode the case where we have no knowledge anymore and the state could be anything (e.g. after an unsupported operation like pointer arithmetic).
+For a file handle \verb|M[k]| with key \verb|k| we therefore define 
+\begin{align}
+M[k] = \bot &\Leftrightarrow k \notin M\\
+M[k] = \top &\Leftrightarrow M[k] = (\emptyset, \emptyset).
+\end{align}
+The ordering and the join operation are defined as
+\begin{align}
+(a,b) \leq (c,d) &\Leftrightarrow c \subset a \wedge b \subset d\\
+(a,b) \sqcap (c,d) &= (a \cap c, b \cup d).
+\end{align}
+
+%\refFigure{fileDomain} shows the ordering that is used. May-Sets with length $n$ are greater than those of length $m$ iff $1<m<n$.
+%\begin{figure}[ht]
+%  \centering
+%\begin{tikzpicture}[]
+%  \node (1) {May \{x\}};
+%  \node [below of=1] (2) {May \{x, y, z ...\}};
+%  \node [below of=2] (3) {Must \{x\}};
+%  \node [below of=3] (4) {May \{\}};
+%
+%  \path[every node/.style={font=\sffamily\small}]
+%    (1) edge node {} (2)
+%    (2) edge node {} (3)
+%    (3) edge node {} (4);
+%\end{tikzpicture}
+%  \caption{Partial order of the file domain}
+%  \label{fig:fileDomain}
+%\end{figure}\\
+
+%\verb|join x y = {records of x}| $\cup$ \verb|{records of y}|.\\
+%\begin{align*}
+%join(x,y)=\left\{\begin{array}{cl}
+%records(x), & \mbox{if }may(x) \wedge |records(x)|=1\\
+%records(y), & \mbox{if }may(y) \wedge |records(y)|=1\\
+%records(x) \cup records(y), & \mbox{else} \end{array}\right.
+%\end{align*}
+
 The location stack is kept because the location of the stdio-function might not always be the location where the warning should be issued. \refListing{07-location-stack.c} defines a custom function for opening files. The warnings should be placed at the call to this function instead of at the call to \verb|fopen|.
 %TODO does this work correctly??
 \listingC{07-location-stack.c}{Location of warning when using custom function for opening files}
-However, using a normal stack could lead to infinite strictly ascending chains as shown in \refListing{08-location-stack-chain.c}. Once the uninitialized variable \verb|b| contains 0, the file will be opened. This normally happens pretty fast before overflowing the call stack. So the program runs fine, but the analysis would get stuck with an ever growing location stack. To avoid this, the location stack behaves as an ordered set, i.e. if a location is already contained in the stack, it won't be pushed. %TODO check code!
+However, using a normal stack could lead to infinite strictly ascending chains as shown in \refListing{08-location-stack-chain.c}. Once the uninitialized variable \verb|b| contains 0, the file will be opened. This normally happens pretty fast before overflowing the call stack. So the program runs fine, but the analysis would get stuck with an ever growing location stack. To avoid this, the location stack behaves like an ordered set, i.e. if a location is already contained in the stack, it won't be pushed. %TODO check code!
 \listingC{08-location-stack-chain.c}{Infinitely growing location stack}
 TODO: limitation: %TODO
 \listingC{09-location-stack-alternate.c}{Mutually recursive functions and the location stack}
-As mentioned above, there are some special cases concerning May-Sets:
-\begin{itemize}
-\item The empty set represents \textbf{V}'s bottom element: \verb|May {}| $ = \bot$
-\item The set with exactly one element \verb|May {x}| means that that the record \verb|x| might not safely describe the file handle anymore because of an unsupported operation (e.g. pointer arithmetic).
-\item The set with more than one element \verb|May {x, y, z ...}| contains possible alternative records. 
-
-Even if the correct one is not known, these alternatives can be used to answer questions about the state during the analysis.
-
-Assume for example that the set contains records with the states \verb|Open(..., Read)| and \verb|Open(..., Write)|. In this case it is safe to say that the file is opened - if it is writable on the other hand is unknown. Another example: all states are \verb|Close| but with different locations. %TODO is this ok for join? how is it done?
-\end{itemize}
-\refFigure{fileDomain} shows the ordering that is used. May-Sets with length $n$ are greater than those of length $m$ iff $1<m<n$.
-\begin{figure}[ht]
-  \centering
-\begin{tikzpicture}[]
-  \node (1) {May \{x\}};
-  \node [below of=1] (2) {May \{x, y, z ...\}};
-  \node [below of=2] (3) {Must \{x\}};
-  \node [below of=3] (4) {May \{\}};
-
-  \path[every node/.style={font=\sffamily\small}]
-    (1) edge node {} (2)
-    (2) edge node {} (3)
-    (3) edge node {} (4);
-\end{tikzpicture}
-  \caption{Partial order of the file domain}
-  \label{fig:fileDomain}
-\end{figure}\\
-% describe join
-The join operation for \textbf{V} is the union of all records, with the exception of 1-element May-Sets which lead to the set itself. The result is always a May-Set.
-%\verb|join x y = {records of x}| $\cup$ \verb|{records of y}|.\\
-\begin{align*}
-join(x,y)=\left\{\begin{array}{cl}
-records(x), & \mbox{if }may(x) \wedge |records(x)|=1\\
-records(y), & \mbox{if }may(y) \wedge |records(y)|=1\\
-records(x) \cup records(y), & \mbox{else} \end{array}\right.
-\end{align*}
 
 
 \section{An analysis for checking file handle usage}
-The analysis uses the following transfer functions, which are called by the framework. The current context is kept in \verb|ctx|, \verb| D.t| is the type of the used domain, \verb| lval| (L-value), \verb|exp| (expression), \verb|fundec| (function declaration) and \verb|varinfo| (variable) are types from CIL.
+The analysis uses the following transfer functions, which are called by the framework. The used domain is \verb|D| and \verb|D.t| its type. The types \verb|lval| (L-value), \verb|exp| (expression), \verb|fundec| (function declaration) and \verb|varinfo| (variable) come from CIL.
 %\begin{lstlisting}[language=ML]
 %let assign ctx (lval:lval) (rval:exp) : D.t = ...
 %let branch ctx (exp:exp) (tv:bool) : D.t = ...
@@ -137,66 +143,136 @@ The analysis uses the following transfer functions, which are called by the fram
 %let special ctx (lval: lval option) (f:varinfo) (arglist:exp list) : D.t = ...
 %\end{lstlisting}
 \begin{description}
-\item \inlineML{assign ctx (lval:lval) (rval:exp)}\\
+\item \inlineML{assign (lval:lval) (rval:exp)}\\
 Assignment of an expression \verb|rval| to a L-value \verb|lval|.\\
 Warn about changed file pointer if \verb|lval| $\in$ \verb|D| and mark entry unsafe. %TODO
 
-\item \inlineML{branch ctx (exp:exp) (tv:bool)}\\
+\item \inlineML{branch (exp:exp) (tv:bool)}\\
 Enter a branch where the condition \verb|exp| is either true or false, depending on \verb|tv|.\\
 Used to handle error-case of \verb|fopen|. If \verb|exp| compares an L-value \verb|lval| with an integer and the expression can be transformed into \verb|lval==0| with \verb|tv| being true, then remove \verb|lval| from the domain.
 
-\item \inlineML{body ctx (f:fundec)}\\
+\item \inlineML{body (f:fundec)}\\
 Called when the body of a function is entered.
 
-\item \inlineML{return ctx (exp:exp option) (f:fundec)}\\
+\item \inlineML{return (exp:exp option) (f:fundec)}\\
 Called once a function returns, \verb|exp| contains the expression if one is returned.\\
 If the returning function is \verb|main|, print out a summary of unclosed files if there are any.
 If a L-value is returned, save it as a special entry \verb|return_var| in the domain.
 Finally remove all formals and locals of the function from the domain.
 
-\item \inlineML{enter ctx (lval: lval option) (f:varinfo) (args:exp list)}\\
+\item \inlineML{enter (lval: lval option) (f:varinfo) (args:exp list)}\\
 Enter a function \verb|f| with arguments \verb|args| and the returned value optionally being saved to \verb|lval|.\\
 Save the current location to the location stack if the function is not \verb|main|.
 
-\item \inlineML{combine ctx (lval:lval option) fexp (f:varinfo) (args:exp list) (au:D.t)}Leave a function \verb|f| and combine the updated domain \verb|au| with the context of the call site. Counterpart to \verb|enter|.\\
+\item \inlineML{combine (lval:lval option) fexp (f:varinfo) (args:exp list) (au:D.t)}\\
+Leave a function \verb|f| and combine the updated domain \verb|au| with the context of the call site. Counterpart to \verb|enter|.\\
 Pop the top element from the location stack. If \verb|return_val| is set and there is an \verb|lval| which is assigned to, save the entry \verb|return_val| points to with \verb|lval| as a new key in the domain.
 
 
-\item \inlineML{special ctx (lval: lval option) (f:varinfo) (arglist:exp list)}\\
+\item \inlineML{special (lval: lval option) (f:varinfo) (arglist:exp list)}\\
 Called for functions that are not defined in the program.\\
 Add the current location to the location stack. Issue warnings and/or modify domain depending on \verb|lval| and the called function. The details are described below.
 \end{description}
 
 
-\section{Soundness vs. Precision}
+%\section{Soundness vs. Precision}
 
 
 \chapter{A general specification for regular safety properties}
 %\section{Interesting types of constraints}
 
-\section{Representing the state of properties using an automaton}
+\section{Representing the state of properties using automata}
+Our goal is to abstract the semantics of a program in order to verify properties given by a specification.
+The behavior of a system can be described using state diagrams, consisting of a finite number of states and transitions between those states.
+Such state diagrams can be formalized by so called finite state machines or finite automata.
+The transitions can be deterministic (at most one transition for each state and input) or nondeterministic (multiple possible next states for each state and input).
+Both deterministic finite automata (DFA) and nondeterministic finite automata (NFA) are usually defined by a 5-tuple $(Q, \Sigma, \delta, q_0, F)$, consisting of
+\begin{itemize}
+\item a finite set of states (Q)
+\item a finite set of input symbols called the alphabet ($\Sigma$)
+\item a transition function ($\delta : Q \times \Sigma \rightarrow Q$)
+\item a start state ($q_0 \in Q$)
+\item a set of accept states ($F \subseteq Q$).
+\end{itemize}
+The automaton then accepts a string $w = a_1 a_2 ... a_n$ over the alphabet $\Sigma$ if there is a sequence of states $r_0, r_1, ..., r_n$ in $Q$ with
+\begin{itemize}
+\item $r_0 = q_0$
+\item $r_{i+1} = \delta(r_i, a_{i+1})$, for $i=0, ..., n-1$
+\item $r_n \in F$.
+\end{itemize}
+Such an automaton can either accept or not accept a given input. In our case this would require us to construct an automaton for every property we want to warn about. For each input we would do the transitions for all automata and every time an automaton reaches an end state, we would issue the corresponding warning and reset the automaton. Since we are only interested in the warnings this is not the best approach.
+
+A better suited solution for our purpose is a finite state transducer, which has two tapes: one for input and one for output. For defining the output function, there are two possibilities:
+\begin{itemize}
+\item a Moore machine determines the output values by its current state,
+\item a Mealy machine determines the output values by its current state and the current input.
+\end{itemize}
+The Mealy machine was chosen as a better fit for the specification since it is more flexible and avoids introducing intermediate states that are used solely for output. Furthermore it keeps the number of states low ($n^2$ vs. $n$ possible output values for $n$ states), which is good for visualization.
+
+Compared to a finite automaton a Mealy machine is a 6-tuple $(S, S_0, \Sigma, \Lambda, T, G)$, consisting of
+\begin{itemize}
+\item a finite set of states (S)
+\item a start state ($S_0 \in S$)
+\item a finite set called the input alphabet ($\Sigma$)
+\item a finite set called the output alphabet ($\Delta$)
+\item a transition function ($T : S \times \Sigma \rightarrow S$)
+\item an output function ($G : S \times \Sigma \rightarrow \Lambda$).
+\end{itemize}
+The transition and output functions can be coalesced into a single function ($T' : S \times \Sigma \rightarrow S \times \Lambda$), which is meant when referring to transitions from now on.
+A transition, which corresponds to an edge in the graph, therefore consists of an input and an output value.
+
+For the specification we use a Mealy machine where
+\begin{itemize}
+\item the states define the abstract semantics (e.g. file handle is open or closed),
+\item the input alphabet consists of the statements of the program,
+\item the output alphabet consists of the warnings that are output and the empty element $\epsilon$ to avoid output.
+\end{itemize}
+Using concrete statements for the transitions would not be very flexible, which is why constraints are used instead. The constraints for each state form an extra automaton and work similar to pattern matching in functional languages: they can contain identifiers for binding values and wildcards for matching everything. Once a constraint matches the input statement, the transition is taken. For string constants regular expressions are also supported.
+This allows a very concise specification of alternatives.
+
+
+\section{A domain for representing the state of properties}
+Properties refer to an object - this could be the whole program or something inside the program, which can be addressed by a L-value. For the file handles this was a L-value at a certain position in the checked statements and allowed to differentiate between multiple handles.
+Apart from L-values special keys are used to guarantee that the state is always assigned to some key.
+One such special key is used for global constraints, i.e. constraints that define no key. This could be used to verify that one function is always called before the other globally. One could also implement other special keys, e.g. to refer to the current function or thread.
+
+The domain for the specification thereforee is very similar to the domain for file handles. It consists of a map \textbf{M} with L-values as a key \textbf{K} and a domain \textbf{V} for its values. \textbf{V} is a tuple of May- and Must-Set, each containing records with a key, location stack and state (see \refListing{specDomainType.ml}).
+\listingML{specDomainType.ml}{Type of the specification domain}
+The main difference is that the state is a string instead of a sum type, which means that it is not fixed at compile-time but comes from the specification file at run-time.
 
 
 \section{Specification format}
-A specification file contains two types of definitions: nodes and edges. Nodes can be defined implicitly through edges or explicitly. The labels of explicitly defined nodes are output. The labels of edges are constraints.
+A specification file contains two types of definitions:
+\begin{itemize}
+\item warnings, consisting of an identifier and text
+\item edges, consisting of a start state, optional outputs, optional forwarding, an end state and a constraint.
+\end{itemize}
+Definitions are separated by line breaks and can be interleaved since the whole file is parsed and split into a list of warnings and a list of edges. Empty lines and C-style comments are ignored.
 
+\refListing{../mini.spec} gives a feel for the syntax using a small example for file handles. The type and amount of whitespace for separation is not important.
+\listingC{../mini.spec}{A very small specification for file handles}
+The semantics and extensions to the syntax are described below.
 \begin{description}
 \item[warnings]
-Nodes are used to define warnings and have an implicit back edge to the previous node if they are used as a target.
-Alternatively warnings can be specified like this: \verb|node1 -w1,w2,w3> node2 constraint| (\verb|w1|, \verb|w2| and \verb|w3| will be output when the transition is taken).
+Identifiers of warnings can also be used as a target by edges. Such transitions have an implicit back edge to the previous state.
 
-\item[start node]
-The start node of the first transition is the start node of the automaton.
+Multiple warnings can be specified like this: \verb|a -w1,w2,w3> b c()| (\verb|w1|, \verb|w2| and \verb|w3| will be output if the automaton is in state \verb|a| and the constraint \verb|c| matches).
 
-\item[end nodes]
-End nodes are specified by \verb|node -> end _|.\\
-\verb|_end| is the local warning for nodes that are not in an end state, \verb|_END| is the warning at return of \verb|main| (\verb|$| can be used as a placeholder for the list of keys).
+\item[states]
+The states $S$ of the Mealy machine are implicitly defined by the start and end states used by edges.
+
+\item[start state]
+The start state of the first transition defines the start state of the automaton.
+
+\item[end states]
+End states are an extension that allows to warn about certain states at the end of the program. A state \verb|x| is marked as an end state by the edge \verb|x -> end _|.
+At the end of the program the warnings with the identifiers \verb|_end| and \verb|_END| are issued for all states that are not marked as an end state. The difference between the two is the location for the warning: \verb|_end| places it at the location for that state, \verb|_END| places it at the end of the \verb|main| function. For the latter \verb|$| can be used as a placeholder for the list of keys.
 
 \item[wildcard]
 An edge with \verb|_| as a constraint matches everything. Wildcards can also be used inside expressions.
 
 \item[forwarding]
-Edges with a two-headed arrow like \verb|->>| (or \verb|-w1,w2>>| etc.) are forwarding edges, which will continue matching the same statement for the target node.\\
+Edges with a two-headed arrow like \verb|->>| (or \verb|-w1,w2>>| etc.) are forwarding edges, which will continue matching the same statement for the target state.\\
 \end{description}
 The grammar for parsing the specification is shown below in a modified Backus-Naur-Form where the symbols $*, +, ?$ are used as in regular expressions. The implementation is based on the lexer and parser generators ocamllex and ocamlyacc. \verb|<string>| can be single- or double-quoted and quotes inside a string can be escaped with \verb|\|. Single- and multi-line comments are supported and already filtered out by the lexer.
 \begin{grammar}
@@ -241,8 +317,7 @@ The grammar for parsing the specification is shown below in a modified Backus-Na
 \end{grammar}
 
 
-\section{Shortcuts for making the specification more concise}
-TODO More sane/human-readable. %TODO
+\section{Making the specification more concise}
 Even for something rather small like the file handle example, the automaton can become very big and hard to read for humans.
 
 In order to avoid redundant parts, forwarding is supported. Forwarding edges are displayed as dotted lines in the generated graphs and can also contain constraints. If such an edge is taken, the current input is again evaluated in the target state.
