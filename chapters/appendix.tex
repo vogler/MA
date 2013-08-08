@@ -9,9 +9,19 @@
 \label{chap:app:setup}
 Install opam\footnote{\url{http://opam.ocamlpro.com/}}, then do
 \begin{lstlisting}
-opam install ocamlfind camomile batteries cil xml-light
+opam install ocamlfind camomile batteries xml-light
 \end{lstlisting}
-to install the latest versions of the dependencies for the current user. After that you can build goblint:
+to install the latest versions of the dependencies for the current user.
+
+Since the version of CIL in the repository is too old, it has to be installed separately:
+\begin{lstlisting}
+git clone git://cil.git.sourceforge.net/gitroot/cil/cil
+pushd cil
+./configure && make && sudo make install
+popd
+rm -rf cil
+\end{lstlisting}
+After that you can build goblint:
 
 \begin{lstlisting}
 git clone https://github.com/goblint/analyzer.git
@@ -21,7 +31,7 @@ make
 If something goes wrong, switch to the versions listed in \verb|INSTALL|:
 \begin{lstlisting}
 opam switch 4.00.1
-opam install ocamlfind.1.3.3 camomile.0.8.3 batteries.2.0.0 cil.1.5.1 xml-light.2.2
+opam install ocamlfind.1.3.3 camomile.0.8.3 batteries.2.0.0 xml-light.2.2
 \end{lstlisting}
 Alternatively you can use your system's package manager to install the dependencies globally or use \verb|install_script.sh| to build everything from source without affecting any existing OCaml installation.
 
@@ -72,7 +82,7 @@ in addition to the normal syntax you can use 'field[+]' append to an array.
 \section{Generating a control flow graph}
 In order to generate a control flow graph do the following:
 \begin{lstlisting}
-./goblint --cfg test.c
+./goblint --set justcfg true test.c
 dot -Tpng cfg.dot -o cfg.png 
 \end{lstlisting}
 
@@ -95,7 +105,7 @@ To use the spec analysis on \verb|test.c| with specification file \verb|test.spe
 ./goblint --sets ana.activated[0][+] spec --sets ana.spec.file test.spec --sets result html test.c
 \end{lstlisting}
 \paragraph*{Parser}
-The specification parser can be built and tested independent from Goblint. The following script compiles the parser and runs it on specification file \verb|$spec|. On failure, it starts the parser again in REPL-mode for testing.
+The specification parser can be built and tested independent of Goblint. The following script compiles the parser and runs it on specification file \verb|$spec|. On failure, it starts the parser again in REPL-mode for testing.
 \begin{lstlisting}[language=bash]
 bin=src/mainspec.native
 spec=${1-"src/spec/file.spec"}
@@ -107,7 +117,7 @@ ocamlbuild -yaccflag -v -X webapp -no-links -use-ocamlfind $bin \
        )
 \end{lstlisting}
 \paragraph*{Graph}
-The parser saves a graph representing the specification to \verb|./result/graph.dot| by default (see \verb|src/spec/specUtil.ml|).
+The parser saves a graph representing the specification to \verb|result/graph.dot| by default (see \verb|src/spec/specUtil.ml|).
 To generate an image, the following could be used:
 \begin{lstlisting}
 dot -Tpng result/graph.dot -o graph.png 

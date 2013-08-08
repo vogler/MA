@@ -3,12 +3,75 @@
 
 
 \chapter{Static analysis and Goblint} %TODO
+\section{Program analysis}
+The goal of program analysis is to gain knowledge about certain properties of a program, which is useful for testing, verification and program optimization.
+This can be done in two ways: by observing its execution which is referred to as dynamic analysis or by analyzing its code which is called static analysis.
+
+\begin{description}
+ \item[dynamic analysis]
+Testing is normally done with a range of different inputs. The inputs are chosen so that as much of the code as possible is executed. This is measured by the so called \textit{code coverage}. Testing every possible combination might take very long, so that choosing the input classes is essential for the effectiveness of the test and might require some experience. Input variables that can't be chosen like the order in which threads are run by the operating system, make it difficult to test for race conditions. Also the testing itself could influence these properties in a way that problems only occur when not testing.
+
+The concept is to find errors by varying the inputs. This way errors can remain undiscovered and absence of errors can't be proven.
+The advantage is that it only finds true errors and that the run-time of the analysis isn't much different than the time it takes to execute the program on its own.
+
+\item[static analysis]
+The source code of the program or something derived from it is analyzed without being executed.
+The simplest form is to look for certain patterns in the code, which is not very flexible and mostly used to check style or coding conventions.
+
+A more powerful approach is abstract interpretation (originally proposed by Cousot and Cousot \cite{Cousot:1977:AIU:512950.512973}), which tries to derive semantics from the code.
+The problem is that there is no general and effective method to do so. The analysis could possibly not terminate, which is why sometimes the semantics have to be approximated in order to avoid non-termination. In general the analysis can be accelerated with the cost of getting less precise.
+
+For a sound analysis this means that it would find more errors than there actually are in the program. The advantage is that it will find all real errors. So if it does not find any errors, the program is guaranteed to be error-free.
+
+A disadvantage is that the analysis could need much more time and memory than the execution of the program, or that for a certain size, the analysis cannot be done within acceptable boundaries.
+\end{description}
+
+
+\section{Operational semantics}
+Programs can be represented as control-flow graphs where vertices are program points and edges are steps of computation. Program start is depicted as a node \textit{start} and program exit as a node \textit{stop}.
+For tests, the edge label $Pos(e)$ is used for the branch where the expression $e$ evaluates to \verb|true| and $Neg(e)$ for \verb|false|.
+Computations follow paths in that graph and transform the current state.
+So every edge $k = (u, lab, v)$ defines a partial transformation $\llbracket k \rrbracket$ of the state. This is the concrete effect of the edge.
+The abstract effect of an edge is denoted as
+\begin{align}
+\llbracket k \rrbracket^\sharp = \llbracket lab \rrbracket^\sharp.
+\end{align}
+
+\section{Complete lattices}
+\begin{definition}A partial order is a set $\mathbb{D}$ and a binary relation $\sqsubseteq \subseteq \mathbb{D} \times \mathbb{D}$ which is reflexive, anti-symmetric and transitive.
+\end{definition}
+\begin{definition}
+$d \in \mathbb{D}$ is called upper bound for $X \subseteq \mathbb{D}$ if $x \sqsupseteq d$ for all $x \in X$.
+
+$d$ is called least upper bound if it is an upper bound and $d \sqsupseteq y$ for every upper bound $y$ of $X$.
+\end{definition}
+\begin{definition}
+A complete lattice $\mathbb{D}$ is a partial ordering where every subset $X \subseteq \mathbb{D}$ has a least upper bound $\bigsqcup X \in \mathbb{D}$.
+\end{definition}
+The counterpart to the \textit{least upper bound} is the \textit{greatest lower bound}, respectively written as $\bigsqcup X$ and $\bigsqcap X$ for a set $X$.
+
+A lattice is called \textit{complete} if every subset $X \subseteq \mathbb{D}$ has a least upper bound \cite{seidl2009uebersetzerbau}.
+
+A lattice is called \textit{bounded} if it has a greatest and a least element, which are referred to as \textit{top} ($\top$) and \textit{bottom} ($\bot$).
+
+Every complete lattice has
+\begin{itemize}
+\item a least element $\bot = \bigsqcup \emptyset \in \mathbb{D}$
+\item a greatest element $\top = \bigsqcup \mathbb{D} \in \mathbb{D}$.
+\end{itemize}
+
+For example, $\mathbb{D} = \mathbb{Z}$ with the relation "=" is not a complete lattice since it has no least upper bound or greatest lower bound. However, the lattice $\mathbb{d} = \mathbb{Z} \cup \{\bot, \top\}$ with "=" (shown in \refFigure{lattice-flat}) is complete. A lattice of this form is called \textit{flat}.
+
+\graphic[width=.6\linewidth]{lattice-flat}{Flat lattice \cite{seidl2009uebersetzerbau}}
+
+
+\section{Constraint systems}
 Knaster–Tarski theorem\\
 Kleene fixed-point theorem\\
 monotonic function f on complete partial order L -> f has least fix-point\\
 different possibilities for solving: kleene, round-robin, work-list\\
-Goblint uses recursive demand-driven solver -> query system to exchange results between analyses\\
-reachability analysis as an example with constraint system etc.\\
+reachability analysis as an example with constraint system etc.
+
 
 \section{Soundness vs. precision}
 Since the program behavior is merely approximated, one has to differentiate between information that may or must be true. For illustration May- and Must-Sets with their corresponding join operation and the meaning of the empty set are described below.
@@ -24,6 +87,18 @@ If the sets contain elements we want to warn about, then the difference is
 The Must-Set is precise but maybe unsound and the May-Set is sound but maybe not very precise.
 
 
+\section{Goblint}
+Goblint uses a recursive demand-driven solver, i.e. constraints get evaluated recursively once they are needed. Results can be shared between different analyses using a query system.
+
+For interprocedural analysis global invariants are used to collect side-effects of functions. These invariants are then used for all calls.
+
+The results can be formatted as XML, JSON or HTML. The XML-output can be displayed in Eclipse via plugin. CIL is used for processing input files and generating a control flow graph (see \refFigure{GoblintComponents}).
+\graphic{GoblintComponents}{Components used by Goblint \cite{Vojdani10Thesis}}
+
+CIL stands for C Intermediate Language and is an infrastructure for C program analysis and transformation \cite{Necula:2002:CIL:647478.727796}. It is used to generate a high-level representation of the input C program. CIL's output can be displayed by invoking Goblint with the option \verb|--set justcil true|. It does a source-to-source transformation that simplifies valid C programs into core constructs with very clean semantics. It is able to process ANSI-C programs and also programs using Microsoft C or GNU C extensions. Modules for control flow graphs, data flow and some analyses are also included.
+
+
+
 \chapter{Verifying correct usage of file handles}
 \label{chap:file}
 \section{Common problems using files}
@@ -33,9 +108,9 @@ The following examples for common problems served as a guideline for the impleme
 \listingC{01-ok.c}{Append text to file. Everything fine?}
 
 \paragraph*{Opening files}
-This might seem fine, since the file will be created if it doesn't exist, but what happens if the file can't be written to?
-If the file exists but we don't have write access, running the code will result in a segmentation fault at \verb|fprintf|.
-We forgot to check the result of \verb|fopen| which returns an error code if the file couldn't be opened successfully.
+This might seem fine, since the file will be created if it does not exist, but what happens if the file cannot be written to?
+If the file exists but we do not have write access, running the code will result in a segmentation fault at \verb|fprintf|.
+We forgot to check the result of \verb|fopen| which returns an error code if the file could not be opened successfully.
 This case is handled by the manual implementation and can also be checked using the specification language. In this example warnings should be issued that the file handle might not be open after line 5.
 
 A corrected version could look like \refListing{02-ok-checked.c}.
@@ -46,7 +121,7 @@ For brevity reasons a success check is omitted in the following examples and it'
 
 \paragraph*{Closing files}
 Not closing files is not necessarily an error since file handles are closed at the end of the program anyway, but it's not good practice and might lead to unwanted behavior.
-Imagine a program that is done writing important information to a file but doesn't close it. What happens if the program gets stuck in calculations or on user input and other programs want to use the file? See \refListing{04-user-input.c} for example. Without the call to \verb|fclose|, the written content might not be flushed until the program terminates. Starting with some content in the file resulted in an empty file at the point of user input.
+Imagine a program that is done writing important information to a file but does not close it. What happens if the program gets stuck in calculations or on user input and other programs want to use the file? See \refListing{04-user-input.c} for example. Without the call to \verb|fclose|, the written content might not be flushed until the program terminates. Starting with some content in the file resulted in an empty file at the point of user input.
 \listingC{04-user-input.c}{A reason for closing files: flushing}
 
 \refListing{05-no-close.c} has comments for warnings that would be issued. There is a warning where the file was opened and a summary of unclosed files at the end of the program.
@@ -55,13 +130,26 @@ Imagine a program that is done writing important information to a file but doesn
 \paragraph*{Open mode}
 Writing to a file which is opened read-only as demonstrated in \refListing{06-open-mode.c} is another problem. Bugs of this kind might be hard to find, since this executes without errors - there is just nothing written to the file.
 \listingC{06-open-mode.c}{Wrong open mode: writing to a read-only file}
+\refTable{open_modes} lists the modes in which a file can be opened. So \verb|r| is the only mode that does not support write operations.
+\begin{table}[ht]
+\centering
+\begin{tabular}{ll}\hline
+Mode & Description\\\hline
+r  & reading\\
+w  & writing (file need not exist)\\
+a  & appending (file need not exist)\\
+r+ & reading and writing, start at beginning\\
+w+ & reading and writing (overwrite file)\\
+a+ & reading and writing (append if file exists)
+\end{tabular}
+\caption{Possible modes for opening a file}
+\label{tbl:open_modes}
+\end{table}
 
 Other functions like \verb|fscanf, fputc, fgetc, fwrite, fread| are not analyzed, since the problems are similar to \verb|fprintf|.
 
 
 \section{A domain for representing file handle usage}
-
-
 Since it should be possible to track multiple file handles, a map \textbf{M} from variables (or better L-values) \textbf{K} to another domain \textbf{V} is needed. The bottom value for \textbf{M} is the empty map.
 The domain \textbf{V} represents one file handle. \refListing{fileDomainType.ml} shows how its type \verb|t| is defined.
 \listingML{fileDomainType.ml}{Type of the file handle domain}
@@ -125,7 +213,7 @@ The ordering and the join operation are defined as
 The location stack is kept because the location of the stdio-function might not always be the location where the warning should be issued. \refListing{07-location-stack.c} defines a custom function for opening files. The warnings should be placed at the call to this function instead of at the call to \verb|fopen|.
 %TODO does this work correctly??
 \listingC{07-location-stack.c}{Location of warning when using custom function for opening files}
-However, using a normal stack could lead to infinite strictly ascending chains as shown in \refListing{08-location-stack-chain.c}. Once the uninitialized variable \verb|b| contains 0, the file will be opened. This normally happens pretty fast before overflowing the call stack. So the program runs fine, but the analysis would get stuck with an ever growing location stack. To avoid this, the location stack behaves like an ordered set, i.e. if a location is already contained in the stack, it won't be pushed. %TODO check code!
+However, using a normal stack could lead to infinite strictly ascending chains as shown in \refListing{08-location-stack-chain.c}. Once the uninitialized variable \verb|b| contains 0, the file will be opened. This normally happens pretty fast before overflowing the call stack. So the program runs fine, but the analysis would get stuck with an ever growing location stack. To avoid this, the location stack behaves like an ordered set, i.e. if a location is already contained in the stack, it will not be pushed. %TODO check code!
 \listingC{08-location-stack-chain.c}{Infinitely growing location stack}
 TODO: limitation: %TODO
 \listingC{09-location-stack-alternate.c}{Mutually recursive functions and the location stack}
@@ -145,11 +233,11 @@ The analysis uses the following transfer functions, which are called by the fram
 \begin{description}
 \item \inlineML{assign (lval:lval) (rval:exp)}\\
 Assignment of an expression \verb|rval| to a L-value \verb|lval|.\\
-Warn about changed file pointer if \verb|lval| $\in$ \verb|D| and mark entry unsafe. %TODO
+Warn about changed file pointer if \verb|lval| $\in$ \verb|D| and set the entry to $\top$.
 
 \item \inlineML{branch (exp:exp) (tv:bool)}\\
 Enter a branch where the condition \verb|exp| is either true or false, depending on \verb|tv|.\\
-Used to handle error-case of \verb|fopen|. If \verb|exp| compares an L-value \verb|lval| with an integer and the expression can be transformed into \verb|lval==0| with \verb|tv| being true, then remove \verb|lval| from the domain.
+Used to handle error-case of \verb|fopen|. If \verb|exp| compares an L-value \verb|lval| with an integer and the expression can be transformed into \verb|lval==0| with \verb|tv| being true, then change the state to \verb|Error|.
 
 \item \inlineML{body (f:fundec)}\\
 Called when the body of a function is entered.
@@ -175,12 +263,8 @@ Add the current location to the location stack. Issue warnings and/or modify dom
 \end{description}
 
 
-%\section{Soundness vs. Precision}
-
 
 \chapter{A general specification for regular safety properties}
-%\section{Interesting types of constraints}
-
 \section{Representing the state of properties using automata}
 Our goal is to abstract the semantics of a program in order to verify properties given by a specification.
 The behavior of a system can be described using state diagrams, consisting of a finite number of states and transitions between those states.
@@ -231,12 +315,17 @@ Using concrete statements for the transitions would not be very flexible, which 
 This allows a very concise specification of alternatives.
 
 
+%\section{Supported types of constraints}
+% see grammar: function calls
+%TODO check comparison constraints after assignment
+
+
 \section{A domain for representing the state of properties}
 Properties refer to an object - this could be the whole program or something inside the program, which can be addressed by a L-value. For the file handles this was a L-value at a certain position in the checked statements and allowed to differentiate between multiple handles.
 Apart from L-values special keys are used to guarantee that the state is always assigned to some key.
 One such special key is used for global constraints, i.e. constraints that define no key. This could be used to verify that one function is always called before the other globally. One could also implement other special keys, e.g. to refer to the current function or thread.
 
-The domain for the specification thereforee is very similar to the domain for file handles. It consists of a map \textbf{M} with L-values as a key \textbf{K} and a domain \textbf{V} for its values. \textbf{V} is a tuple of May- and Must-Set, each containing records with a key, location stack and state (see \refListing{specDomainType.ml}).
+The domain for the specification therefore is very similar to the domain for file handles. It consists of a map \textbf{M} with L-values as a key \textbf{K} and a domain \textbf{V} for its values. \textbf{V} is a tuple of May- and Must-Set, each containing records with a key, location stack and state (see \refListing{specDomainType.ml}).
 \listingML{specDomainType.ml}{Type of the specification domain}
 The main difference is that the state is a string instead of a sum type, which means that it is not fixed at compile-time but comes from the specification file at run-time.
 
@@ -272,17 +361,25 @@ At the end of the program the warnings with the identifiers \verb|_end| and \ver
 An edge with \verb|_| as a constraint matches everything. Wildcards can also be used inside expressions.
 
 \item[forwarding]
-Edges with a two-headed arrow like \verb|->>| (or \verb|-w1,w2>>| etc.) are forwarding edges, which will continue matching the same statement for the target state.\\
+Edges with a two-headed arrow like \verb|->>| (or \verb|-w1,w2>>| etc.) are forwarding edges, which will continue matching the same statement for the target state.
 \end{description}
-The grammar for parsing the specification is shown below in a modified Backus-Naur-Form where the symbols $*, +, ?$ are used as in regular expressions. The implementation is based on the lexer and parser generators ocamllex and ocamlyacc. \verb|<string>| can be single- or double-quoted and quotes inside a string can be escaped with \verb|\|. Single- and multi-line comments are supported and already filtered out by the lexer.
-\begin{grammar}
+The grammar for parsing the specification is shown below in a modified Backus-Naur-Form where the symbols $*, +, ?$ are used as in regular expressions. The implementation is based on the lexer and parser generators ocamllex and ocamlyacc. Single- and multi-line comments are supported and already filtered out by the lexer.
 
+\begin{grammar}
 <file> ::= <definition> EOL \verb|/* definitions are seperated by line breaks */|
 \alt <definition> EOF
-\alt EOL
-\alt EOF
+\alt EOL \verb|/* end of line */|
+\alt EOF \verb|/* end of file */|
 
-<node> ::= <word> <ws>+ <string> \verb|/* word is [_0-9a-zA-Z], ws is whitespace */|
+<word> ::= \verb|[_0-9a-zA-Z]|
+
+<identifier> ::= \verb|[_a-zA-Z]| <word>* \verb|/* e.g. foo, _foo, _1, but not 1a */|
+
+<ws>   ::= \verb|[ \t]| \verb|/* whitespace: space or tab */|
+
+<string> ::= ... \verb|/* single- or double-quoted, backslash escapes */|
+
+<node> ::= <word> <ws>+ <string>
 
 <edge> ::= <word> <ws>* `-' (<word> (`,' <word>)*)? `>'? `>' <ws>* <word> <ws>+
 
@@ -295,7 +392,7 @@ The grammar for parsing the specification is shown below in a modified Backus-Na
 <key> ::= `\$' <word>
 
 <var> ::= <key>
-\alt <identifier> \verb|/* e.g. foo, _foo, _1, but not 1a */|
+\alt <identifier>
 
 <regex> ::= `r' <string>
 
@@ -308,13 +405,12 @@ The grammar for parsing the specification is shown below in a modified Backus-Na
 \alt <regex>
 \alt <string>
 \alt <bool> \verb|/* true or false */|
-\alt <nexpr> \verb|/* omitted: numerical expressions are evaluated */|
 \alt <var>
 \alt <identifier> `(' <arguments> `)' \verb|/* function call */|
 \alt `_' \verb|/* wildcard */|
-\alt <expr> <binop> <expr> \verb|/* omitted: numerical comparisons are evaluated */|
-
+\alt <expr> <binop> <expr>
 \end{grammar}
+The grammar used for the implementation also evaluates numerical expressions and comparisons as far as possible. This has been omitted above for clarity.
 
 
 \section{Making the specification more concise}
@@ -323,6 +419,8 @@ Even for something rather small like the file handle example, the automaton can 
 In order to avoid redundant parts, forwarding is supported. Forwarding edges are displayed as dotted lines in the generated graphs and can also contain constraints. If such an edge is taken, the current input is again evaluated in the target state.
 
 Another feature are wildcards. In each state pattern matching is done on the constraints and the transistion of the first matching constraint is taken. Wildcards can be used anywhere, e.g. as a function argument or as a last constraint which always matches.
+
+
 
 \chapter{Example use cases}
 %http://smallcultfollowing.com/babysteps/pubs/2013.07.17-NEU.pdf
@@ -343,28 +441,33 @@ TODO format differently
 \graphic{file}{Automaton for optimistic file handle usage}
 \end{landscape}
 
+
 \section{Locks}
 Different kinds of locks + table of functions for them.
-Locks with counters not regular -> see extenstions.
+Locks with counters not regular -> see extensions.
+
 
 \section{Heap usage: malloc and free}
 
 
-\chapter{Providing a better interface}
-\section{Web frontend}
-Screenshots.
-Online version.
+
+%\chapter{Providing a better interface}
+%\section{Web frontend}
+%Screenshots.
+%Online version.
 
 
-\chapter{Tests and real world examples}
-Test some specifications on kernel code?
-Benchmarks?
+%\chapter{Tests and real world examples}
+%Test some specifications on kernel code?
+%Benchmarks?
 
 
-\chapter{Ideas for further development}
+\chapter{Conclusion and future work}
+web frontend for definition and visualization of specification\\
+extensions to specification: conditions, queries
+
 \section{Non-regular safety properties}
+use CFG instead of DFA for specification
 E.g. locks with counters.
 
-
-\chapter{Conclusion}
 

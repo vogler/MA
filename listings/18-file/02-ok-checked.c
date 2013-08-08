@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 int main(){
 	FILE *fp;
@@ -8,6 +9,8 @@ int main(){
 		fprintf(fp, "Testing...\n");
 		fclose(fp);
 	}else{
-		printf("error opening file");
+		perror("failed to open file");
+		return EXIT_FAILURE;
 	}
+	return EXIT_SUCCESS;
 }
