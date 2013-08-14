@@ -2,7 +2,7 @@
 
 
 
-\chapter{Static analysis and Goblint} %TODO
+\chapter{Static analysis and Goblint}
 \section{Program analysis}
 The goal of program analysis is to gain knowledge about certain properties of a program, which is useful for testing, verification and program optimization.
 This can be done in two ways: by observing its execution which is referred to as dynamic analysis or by analyzing its code which is called static analysis.
@@ -27,30 +27,18 @@ A disadvantage is that the analysis could need much more time and memory than th
 \end{description}
 
 
-\section{Operational semantics}
-Programs can be represented as control-flow graphs where vertices are program points and edges are steps of computation. Program start is depicted as a node \textit{start} and program exit as a node \textit{stop}.
-For tests, the edge label $Pos(e)$ is used for the branch where the expression $e$ evaluates to \verb|true| and $Neg(e)$ for \verb|false|.
-Computations follow paths in that graph and transform the current state.
-So every edge $k = (u, lab, v)$ defines a partial transformation $\llbracket k \rrbracket$ of the state. This is the concrete effect of the edge.
-The abstract effect of an edge is denoted as
-\begin{align}
-\llbracket k \rrbracket^\sharp = \llbracket lab \rrbracket^\sharp.
-\end{align}
-
 \section{Complete lattices}
 \begin{definition}A partial order is a set $\mathbb{D}$ and a binary relation $\sqsubseteq \subseteq \mathbb{D} \times \mathbb{D}$ which is reflexive, anti-symmetric and transitive.
 \end{definition}
 \begin{definition}
-$d \in \mathbb{D}$ is called upper bound for $X \subseteq \mathbb{D}$ if $x \sqsupseteq d$ for all $x \in X$.
+An element $d \in \mathbb{D}$ is called upper bound for $X \subseteq \mathbb{D}$ if $x \sqsupseteq d$ for all $x \in X$.
 
-$d$ is called least upper bound if it is an upper bound and $d \sqsupseteq y$ for every upper bound $y$ of $X$.
+It is called least upper bound if it is an upper bound and $d \sqsupseteq y$ for every upper bound $y$ of $X$.
 \end{definition}
 \begin{definition}
 A complete lattice $\mathbb{D}$ is a partial ordering where every subset $X \subseteq \mathbb{D}$ has a least upper bound $\bigsqcup X \in \mathbb{D}$.
 \end{definition}
-The counterpart to the \textit{least upper bound} is the \textit{greatest lower bound}, respectively written as $\bigsqcup X$ and $\bigsqcap X$ for a set $X$.
-
-A lattice is called \textit{complete} if every subset $X \subseteq \mathbb{D}$ has a least upper bound \cite{seidl2009uebersetzerbau}.
+The counterpart to the \textit{least upper bound} is the \textit{greatest lower bound}. They are also called \textit{join} and \textit{meet}, respectively written as $\bigsqcup X$ and $\bigsqcap X$ for a set $X$.
 
 A lattice is called \textit{bounded} if it has a greatest and a least element, which are referred to as \textit{top} ($\top$) and \textit{bottom} ($\bot$).
 
@@ -65,12 +53,254 @@ For example, $\mathbb{D} = \mathbb{Z}$ with the relation "=" is not a complete l
 \graphic[width=.6\linewidth]{lattice-flat}{Flat lattice \cite{seidl2009uebersetzerbau}}
 
 
-\section{Constraint systems}
-Knaster–Tarski theorem\\
-Kleene fixed-point theorem\\
-monotonic function f on complete partial order L -> f has least fix-point\\
-different possibilities for solving: kleene, round-robin, work-list\\
-reachability analysis as an example with constraint system etc.
+\section{Operational semantics and abstract interpretation}
+C programs consist of a finite set of procedures $Proc$, including the main procedure ($main \in Proc$), which is executed first.
+
+% intraprocedural
+A control flow graph $G_p$ for a procedure $p \in Proc$ is a tuple $(N_p,E_p,e_p,r_p)$:
+\begin{itemize}
+\item $N_p$ is the finite set of nodes, which represent program points
+\item $E_p$ is the finite set of edges, which represent steps of computation
+\item $e_p \in N_p$ is the start node, which represents the entry point
+\item $r_p \in N_p$ is the end node, which represents the return point
+\end{itemize}
+An edge from node $u$ to $v$ with a label $lab$ is defined as $(u, lab, v)$.
+For tests, the edge label $Pos(e)$ is used for the branch where the expression $e$ evaluates to \verb|true| and $Neg(e)$ for the branch where it evaluates to \verb|false|. This notion is also used for representing loops as shown in \refFigure{cfg_branch}.
+
+\begin{figure}[ht]
+\begin{minipage}[t]{0.5\textwidth}
+\hfill
+\begin{lstlisting}[language=C]
+if(x){
+	a();
+}else{
+	b();
+}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}[t]{0.5\textwidth}
+\vspace{0pt}
+\centering
+\begin{tikzpicture}[style=cfg]
+  \node (1) {1};
+  \node [below left of=1] (2) {4};
+  \node [below right of=1] (3) {2};
+  \node [below right of=2] (4) {5};
+
+  \path[style=cfgpath]
+    (1) edge node [left, pos=.3] {Neg(x)} (2)
+        edge node [right, pos=.3] {Pos(x)} (3)
+    (2) edge node [left, pos=.6] {b()} (4)
+    (3) edge node [right, pos=.6] {a()} (4);
+\end{tikzpicture}
+\end{minipage}
+\\
+
+\begin{minipage}[t]{0.5\textwidth}
+\hfill
+\begin{lstlisting}[language=C]
+while(x){
+	a();
+}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}[t]{0.5\textwidth}
+\vspace{0pt}
+\centering
+\begin{tikzpicture}[style=cfg]
+  \node (1) {1};
+  \node [below left of=1] (3) {3};
+  \node [below right of=1] (2) {2};
+
+  \path[style=cfgpath]
+    (1) edge node [left, pos=.3] {Neg(x)} (3)
+        edge node [right, pos=.3] {Pos(x)} (2)
+    (2) edge [bend left] node {a()} (1);
+\end{tikzpicture}
+\end{minipage}
+\\
+
+\begin{minipage}[t]{0.5\textwidth}
+\hfill
+\begin{lstlisting}[language=C]
+for(int i=0; i<42; i++){
+	a();
+}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}[t]{0.5\textwidth}
+\vspace{0pt}
+\centering
+\begin{tikzpicture}[style=cfg]
+  \node (1) {1};
+  \node [below of=1] (1a) {1'};
+  \node [below left of=1a] (3) {3};
+  \node [below right of=1a] (2) {2};
+  \node [below of=2] (1b) {1''};
+
+  \path[style=cfgpath]
+    (1) edge [right] node {int i=0} (1a)
+    (1a) edge node [left, pos=.3] {Neg(i<42)} (3)
+         edge node [right, pos=.3] {Pos(i<42)} (2)
+    (2) edge [right] node {a()} (1b)
+    (1b) edge [bend left] node {i++} (1a);
+\end{tikzpicture}
+\end{minipage}
+
+  \caption{Control-flow graphs with branching}
+  \label{fig:cfg_branch}
+\end{figure}
+
+A path $\pi$ is a sequence of edges.
+Computations follow paths in the graph and transform the current state $s \in S$.
+Every edge $k = (u, lab, v)$ defines a partial transformation
+\begin{align}
+\llbracket k \rrbracket = \llbracket lab \rrbracket : S \to S
+\end{align}
+of the state. This is called the concrete effect of the edge.
+
+The result of the computation of a path $\pi = k_1 \pi_1$ on a state $s$ is defined as
+\begin{align}
+\llbracket \pi \rrbracket \; s = \llbracket \pi_1 \rrbracket \; (\llbracket k_1 \rrbracket \; s)
+\end{align}
+and the result for the empty path $\pi = \epsilon$ as
+\begin{align}
+\llbracket \pi \rrbracket \; s = s.
+\end{align}
+
+% concrete semantics and MOP
+The concrete semantics then specify the type of state and the transfer functions for edges.
+%TODO example for constant propagation?
+Since we are interested in the state at a given program point and there might be multiple paths leading to that point, we have to merge all the paths, which results in a powerset of possible states. This means that we are looking for a mapping
+\begin{align}
+\sigma : N \to 2^S.
+\end{align}
+This is called the Merge Over all Paths (MOP) solution, which contains all the possible states for any execution.
+Analyses like constant propagation can be used to improve the precision by excluding paths.
+
+Circles in the control flow graph might lead to infinitely many paths, which is why the MOP solution can not be computed in general.
+
+% abstract semantics and MOP
+To solve this problem, abstract interpretation relies on abstract semantics, consisting of a domain $\mathbb{D}$, which has to be a complete lattice, and abstract transfer functions, which have to be monotonic.
+
+There is a Galois connection between the concrete states $2^S$ and the abstract state $\mathbb{D}$ which approximates the former.
+A concretization function $\gamma : \mathbb{D} \to 2^S$ is used to map an abstract state to all simulated concrete states.
+
+The abstract effect of an edge $k$ is
+\begin{align}
+\llbracket k \rrbracket^\sharp = \llbracket lab \rrbracket^\sharp : \mathbb{D} \to \mathbb{D}.
+\end{align}
+Paths are defined analog to concrete paths.
+
+The MOP solution with abstract effects for a point $v$, start point $start$ and start state $d_0 \in \mathbb{D}$ is defined as
+\begin{align}
+\mathcal{I}^*[v] = \bigsqcup \{\llbracket \pi \rrbracket^\sharp \; d_0 \; | \; start \to^* v\}.
+\end{align}
+
+% constraint system
+Instead of this join over an possibly infinite set, a constraint system is used to guarantee computability at the cost of precision. Since the abstract state is a complete lattice and the transformations are monotonic, the system will always converge to a least fix-point solution (Knaster-Tarski theorem) that approximates the MOP solution (Kam, Ullman).
+
+The constraint system for a start point $start$ and start state $d_0 \in \mathbb{D}$ is set up as
+\begin{align}
+\mathcal{I}[start] &\sqsupseteq d_0\\
+\mathcal{I}[v]	   &\sqsupseteq \llbracket k \rrbracket^\sharp \; (\mathcal{I}[u])	&\forall k = (u, \_, v) \in E
+\end{align}
+and can be solved using various iteration schemes.
+%TODO example for constraint system?
+A solution of the constraint system then approximates the MOP solution:
+\begin{align}
+\mathcal{I}[v]	   &\sqsupseteq \mathcal{I}^*[v] &\forall v \in N
+\end{align}
+
+% interprocedural
+While these concepts work fine intraprocedurally, programs with multiple procedures need some special attention.
+For simplification we assume that variables are uniquely named and parameters and return values are handled as assignments.
+A procedure $p$ has exactly one definition \verb|void p(){...}| and can be called via \verb|p()|.
+We introduce call edges from a call site to the start of the procedure definition and return edges from the return point to the point after the call site.
+\refFigure{ivp} shows such a combined graph of multiple procedures.
+
+\begin{figure}[ht]
+\begin{minipage}[t]{0.5\textwidth}
+\hfill
+\begin{lstlisting}[language=C]
+#include <stdio.h>
+
+int x;
+
+void f(){
+    x++;
+}
+
+void g(){
+    f();
+}
+
+void main(){
+    x = 0;
+    f();
+    g();
+    printf("%i", x);
+}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}[t]{0.5\textwidth}
+\vspace{0pt}
+\centering
+\begin{tikzpicture}[style=cfg]
+  \node (1) {1};
+  \node [below of=1] (2) {2};
+  \node [below of=2] (3) {3};
+  \node [below of=3] (4) {4};
+  \node [below of=4] (5) {5};
+
+  \node [right=2cm of 1] (1f) {1f};
+  \node [below of=1f] (2f) {2f};
+
+  \node [right=2cm of 1f] (1g) {1g};
+  \node [below of=1g] (2g) {2g};
+
+  \path[style=cfgpath]
+    (1) edge node [left] {x=0} (2)
+    (2)	edge [style={mygreen}] node [above, pos=.4] {f()} (1f)
+    (1f) edge node [right] {x++} (2f)
+    (2f) edge [style={mymauve}] node [above] {return} (2g)
+    (2f) edge [style={mygreen}] node [left, pos=.3] {return} (3)
+    (1g) edge [style={mymauve}] node [above] {f()} (1f)
+    (2g) edge [style={myblue}, bend left] node [left, pos=.4] {return} (4)
+    (3) edge [style={myblue}, bend right] node [above, pos=.48] {g()} (1g)
+
+    (4) edge [right] node {printf("\%i", x)} (5);
+\end{tikzpicture}
+\end{minipage}
+  \caption{Control-flow graph with multiple procedures}
+  \label{fig:ivp}
+\end{figure}
+
+The problem now is that not all paths are valid, i.e. some paths would be considered for the solution despite not being possible executions of the program. This happens because we do not ensure that function calls return to the right place
+For the example above, there is only one valid path (1-2-1f-2f-3-1g-1f-2f-2g-4-5), but we would consider infinitely many paths because of the circle (3-1g-1f-2f-3).
+
+An interprocedural flow graph $G^*$, as defined in \cite{Sharir:1981:CallStrings}, solves this problem by only allowing so called interprocedurally valid paths ($\mathit{IVP}(G^*)$). It is defined as $(N^*,E^*,e_{main})$ where $e_{main}$ is the entry point of the program.
+
+An interprocedurally valid path $\pi \in \mathit{IVP}(G^*)$ can be determined by its call-string $cs(\pi)$, which is the subsequence of edges that have not been returned yet. Both can be inductively defined on the length of $\pi$:
+\begin{itemize}
+\item if $\pi = \epsilon$ then $\pi \in \mathit{IVP}(G^*)$ and $cs(\pi) = \epsilon$
+\item if $\pi = \pi' N$ and $\gamma = cs(\pi')$ then $\pi \in \mathit{IVP}(G^*)$ iff $\pi' \in \mathit{IVP}(G^*)$ and one of the following holds:
+\subitem $N$ is neither a call nor a return edge. $cs(\pi) = \gamma$.
+\subitem $N$ is a call edge. $cs(\pi) = \gamma N$.
+\subitem $N$ is a return edge, $\gamma$ is of the form $\gamma' C$ and $N$ corresponds to the call edge $C$. $cs(\pi) = \gamma'$.
+\end{itemize}
+
+The domain is then augmented by this information and the transfer functions for call and return edges modified to ignore invalid edges based on it. Therefore all paths over edges from $E^*$ are guaranteed to be valid.
+
+Although Goblint uses a different approach, this concept of inter-procedural paths is used in the following, since it allows to apply the same methods for both settings.
+
+
+%\section{Constraint systems}
+%Knaster–Tarski theorem\\
+%Kleene fixed-point theorem\\
+%monotonic function f on complete partial order L -> f has least fix-point\\
+%different possibilities for solving: kleene, round-robin, work-list\\
+%reachability analysis as an example with constraint system etc.
 
 
 \section{Soundness vs. precision}
@@ -110,7 +340,9 @@ The following examples for common problems served as a guideline for the impleme
 \paragraph*{Opening files}
 This might seem fine, since the file will be created if it does not exist, but what happens if the file cannot be written to?
 If the file exists but we do not have write access, running the code will result in a segmentation fault at \verb|fprintf|.
-We forgot to check the result of \verb|fopen| which returns an error code if the file could not be opened successfully.
+We forgot to check the result of \verb|fopen| which returns a null pointer if the file could not be opened successfully.
+Accessing a file that doesn't exist for reading also results in a segmentation fault.
+
 This case is handled by the manual implementation and can also be checked using the specification language. In this example warnings should be issued that the file handle might not be open after line 5.
 
 A corrected version could look like \refListing{02-ok-checked.c}.
@@ -129,8 +361,11 @@ Imagine a program that is done writing important information to a file but does 
 
 \paragraph*{Open mode}
 Writing to a file which is opened read-only as demonstrated in \refListing{06-open-mode.c} is another problem. Bugs of this kind might be hard to find, since this executes without errors - there is just nothing written to the file.
+Analogously, reading from a file that is opened write-only is the same as reading an empty file.
 \listingC{06-open-mode.c}{Wrong open mode: writing to a read-only file}
-\refTable{open_modes} lists the modes in which a file can be opened. So \verb|r| is the only mode that does not support write operations.
+\refTable{open_modes} lists the modes in which a file can be opened.
+To open a file in binary mode the character `b' is appended to the mode string or inserted before `+', e.g. `rb', `r+b' or `rb+'.
+So `r' and `rb' are the only modes that do not support write operations.
 \begin{table}[ht]
 \centering
 \begin{tabular}{ll}\hline
@@ -146,7 +381,132 @@ a+ & reading and writing (append if file exists)
 \label{tbl:open_modes}
 \end{table}
 
-Other functions like \verb|fscanf, fputc, fgetc, fwrite, fread| are not analyzed, since the problems are similar to \verb|fprintf|.
+Other functions like \verb|fscanf, fputc, fgetc, fwrite, fread| are not shown here, since the problems are similar to \verb|fprintf|.
+
+
+\section{Concrete and abstract semantics}
+For the concrete semantics we are only interested in the effects of statements on file handles. Other semantics are intentionally left undefined.
+File handles are L-values pointing to a structure \verb|FILE| which keeps information about the file descriptor, stream position, pointer to the stream's buffer and some status flags.
+We differentiate between the states
+\begin{itemize}
+\item unopened (struct not initialized)
+\item maybe opened a file in a specific mode (before success check)
+\item opened a file in a specific mode (after success check)
+\item closed
+\end{itemize}
+The type of the concrete state is then
+\begin{align}
+S' &: \mathit{Lval} \to (\mathit{File} * \mathit{Mode} * \mathit{Checked}) + ()\\
+S  &: S' * \mathit{Other}
+\end{align}
+where $S'$ is a mapping from L-values to the opened or closed state. A L-value is unopened if it is not mapped.
+The types $\mathit{File}$ and $\mathit{Mode}$ are strings, $\mathit{Checked}$ is Boolean.
+$\mathit{Other}$ contains the state of everything other than file handles and can be used for evaluating expressions.
+
+For the open mode we define the predicates (with $\mathcal{L}(\mathit{regex})$ being the set generated by the regular expression $\mathit{regex}$)
+\begin{align}
+\mathit{readwrite}(m) &= m \in \mathcal{L}(\text{[rwa] (\textbackslash+ | \textbackslash+b | b\textbackslash+)})\\
+\mathit{readable}(m) &= \mathit{readwrite}(m) \vee m \in \{\text{r}, \text{rb}\}\\
+\mathit{writable}(m) &= \mathit{readwrite}(m) \vee m \in \mathcal{L}(\text{[wa] b?})\\
+\mathit{unkown}(m) &= \neg \mathit{readable}(m) \wedge \neg \mathit{writable}(m)
+\end{align}
+
+The \verb|FILE| structure is only supposed to be accessed by functions defined in \verb|stdio.h| or \verb|wchar.h|.
+Since there are many functions for reading and writing files defined by \verb|stdio.h|, we summarize them using
+
+%$write(p) = \{$
+%\inlineC{fprintf(p, ...), vfprintf(p, ...),
+%fputc(_, p), fputs(_, p), putc(_, p),
+%fwrite(_, _, _, p)} $\}$
+%
+%$read(p) = \{$
+%\inlineC{fscanf(p, ...), vfscanf(p, ...),
+%fgetc(p), fgets(_, _, p), getc(p),
+%fread(_, _, _, p)} $\}$
+
+\begin{align}
+write(p) &= \{
+\text{fprintf(p, ...)}, \text{vfprintf(p, ...)},
+\text{fputc(\_, p)}, \text{fputs(\_, p)},    \text{putc(\_, p)},
+\text{fwrite(\_, \_, \_, p)} \}\\
+read(p)  &= \{ \text{fscanf(p, ...)},  \text{vfscanf(p, ...)},
+\text{fgetc(p)},    \text{fgets(\_, \_, p)}, \text{getc(p)},
+\text{fread(\_, \_, \_, p)} \}
+\end{align}
+The header file \verb|wchar.h| extends these by various additional functions for work with C wide strings, which are omitted here. 
+
+Next we define the transfer functions for file handles on the concrete state $(s,o) : S$.
+Below $\llbracket Pos(p) \rrbracket$ and $\llbracket Neg(p) \rrbracket$ are shorthand for all expressions where $p$ is checked, e.g. \verb|p|, \verb|!p|, \verb|p==NULL|, \verb|p!=0|, \verb|p>0|.
+Similarly $\llbracket \text{p1 = p2} \rrbracket$ includes statements like \verb|p1++|, \verb|p1-=3|, \verb|p[0].file=fun()+1| and so on.
+
+\begin{align}
+\conEf{p = fopen(f, m)}{(s,o)} &= (s \oplus \{ \conEf{p}{o} \mapsto (\conEf{f}{o}, \conEf{m}{o}, \mathit{false}) \}, o)\\
+\conEf{Pos(p)}{(s,o)} &= \left\{\begin{array}{ll}
+	(s \oplus \{ \conEf{p}{o} \mapsto (f, m, \mathit{true}) \}, o) & \text{if } s(\conEf{p}{o}) = (f,m,\mathit{false})\\
+	(s,o) & \text{else}
+	\end{array}\right.\\
+\conEf{Neg(p)}{(s,o)} &= \left\{\begin{array}{ll}
+	(s \ominus \{ \conEf{p}{o} \mapsto (f, m, c) \}, o) & \text{if } s(\conEf{p}{o}) = (f,m,c)\\
+	(s,o) & \text{else}
+	\end{array}\right.\\
+\conEf{fclose(p)}{(s,o)} &= (s \oplus \{ \conEf{p}{o} \mapsto () \}, o)\\
+\conEf{$write(p)$}{(s,o)} &= (s,o)\\
+	\text{ and}&
+	\left\{\begin{array}{ll}
+	\text{something written} & \text{if } s(\conEf{p}{o}) = (f,m,\mathit{true}) \wedge writable(m)\\
+	\text{nothing written} & \text{if } s(\conEf{p}{o}) = (f,m,\mathit{true}) \wedge \neg writable(m)\\
+	& \vee \: s(\conEf{p}{o}) = ()\\
+	\text{segmentation fault} & \text{else}
+	\end{array}\right.\\
+\conEf{$read(p)$}{(s,o)} &= (s,o)\\
+	\text{ and}&
+	\left\{\begin{array}{ll}
+	\text{something read} & \text{if } s(\conEf{p}{o}) = (f,m,\mathit{true}) \wedge readable(m)\\
+	\text{nothing read} & \text{if } s(\conEf{p}{o}) = (f,m,\mathit{true}) \wedge \neg readable(m)\\
+	& \vee \: s(\conEf{p}{o}) = ()\\
+	\text{segmentation fault} & \text{else}
+	\end{array}\right.\\
+\conEf{p1 = p2}{(s,o)} &= \left\{\begin{array}{ll}
+	(s \oplus \{ \conEf{p1}{o} \mapsto x \}, o) & \text{if } (\conEf{p2}{o}, x) \in s\\
+	(s \ominus \{ \conEf{p1}{o} \mapsto y \}, o) & \text{if } (\conEf{p2}{o}, x) \notin s \wedge (\conEf{p1}{o}, y) \in s\\
+	(s,o) & \text{else}
+	\end{array}\right.
+\end{align}
+
+All other statements are assumed to not affect the state of file handles or affect it in a way that is not relevant for us, e.g. changing the position indicator inside the file with \verb|fseek| or similar functions.
+
+Remembering the interprocedural flow graph $G^* = (N^*, E^*, e_{main})$ we are now looking for a function
+\begin{align}
+\sigma : N^* \to 2^S
+\end{align}
+that gives us the set of possible states for a program point.
+That means that for every valid path $\pi \in \mathit{IVP}(G^*)$ from $e_{main}$ to some $n \in N^*$ and start state $s_0$ the concrete state must be included in the set:
+\begin{align}
+\sigma[n] &\supseteq \{ \llbracket \pi \rrbracket \; s_0 \}		&\forall n \in N^*, \pi = (e_{main},\_,\_)...(\_,\_,n) \in \mathit{IVP}(G^*)
+% better?: [[\pi]] s_o \in \sigma[n]
+\end{align}
+
+To describe concrete values $x \in 2^S$, we introduce a domain with abstract values $a \in \mathbb{D}$ and a description relation $\Delta$ with
+\begin{align}
+x \Delta a_1 \wedge a_1 \sqsubseteq a_2 \Longrightarrow x \Delta a_2
+\end{align}
+Between $2^S$ and $\mathbb{D}$ there is a Galois connection which allows to define a concretization function $\gamma$ that yields all described concrete values
+\begin{align}
+\gamma(a) = \{ x \; | \; x \Delta a \}
+\end{align}
+
+Define your abstract semantics transformations:\\
+  - define $[[ \cdot ]]^\sharp$  (you state that you have defined it --- in the appendix)\\
+  - you can talk about that we use assign, ... enter and combine in an CFG instead of
+      $[[ ]]^\sharp$ over an interprocedural flow graph (but that is just details)\\
+  - now you assure people that your $[[l]]^\sharp$  is sound:\\
+    + that $\gamma([[ l ]]^\sharp x) \geq \bigcup_{x' \in \gamma(x)} \{ [[ l ]] x' \}$\\
+
+Define a constraint system:
+  - $\forall (x,l,y)\in E^* : \sigma'[y] \supseteq [[l]]^\sharp (\sigma'[x])$\\
+
+
+As you have a Galois connection, $\sigma[x] \leq \gamma(\sigma[x])$.\\
 
 
 \section{A domain for representing file handle usage}
@@ -270,17 +630,17 @@ Our goal is to abstract the semantics of a program in order to verify properties
 The behavior of a system can be described using state diagrams, consisting of a finite number of states and transitions between those states.
 Such state diagrams can be formalized by so called finite state machines or finite automata.
 The transitions can be deterministic (at most one transition for each state and input) or nondeterministic (multiple possible next states for each state and input).
-Both deterministic finite automata (DFA) and nondeterministic finite automata (NFA) are usually defined by a 5-tuple $(Q, \Sigma, \delta, q_0, F)$, consisting of
+Both deterministic finite automata (DFA) and nondeterministic finite automata (NFA) are usually defined by a 5-tuple $(S, \Sigma, \delta, S_0, F)$, consisting of
 \begin{itemize}
-\item a finite set of states (Q)
+\item a finite set of states (S)
 \item a finite set of input symbols called the alphabet ($\Sigma$)
-\item a transition function ($\delta : Q \times \Sigma \rightarrow Q$)
-\item a start state ($q_0 \in Q$)
-\item a set of accept states ($F \subseteq Q$).
+\item a transition function ($\delta : S \times \Sigma \rightarrow S$)
+\item a start state ($S_0 \in S$)
+\item a set of accept states ($F \subseteq S$).
 \end{itemize}
-The automaton then accepts a string $w = a_1 a_2 ... a_n$ over the alphabet $\Sigma$ if there is a sequence of states $r_0, r_1, ..., r_n$ in $Q$ with
+The automaton then accepts a string $w = a_1 a_2 ... a_n$ over the alphabet $\Sigma$ if there is a sequence of states $r_0, r_1, ..., r_n$ in $S$ with
 \begin{itemize}
-\item $r_0 = q_0$
+\item $r_0 = S_0$
 \item $r_{i+1} = \delta(r_i, a_{i+1})$, for $i=0, ..., n-1$
 \item $r_n \in F$.
 \end{itemize}

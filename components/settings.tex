@@ -40,10 +40,11 @@
 \usepackage{color}
 
 %% make fancy math
-\usepackage{amsmath}
-\usepackage{amsfonts}
-\usepackage{amssymb}
-\usepackage{textcomp}
+%\usepackage{amsmath}
+\usepackage{amsfonts} % e.g. mathbb
+%\usepackage{amssymb}
+%\usepackage{textcomp}
+\usepackage{mathtools}
 %\usepackage{yhmath} % für die adots 
 %% mark text as preliminary
 %\usepackage[draft,german,scrtime]{prelim2e}
@@ -180,7 +181,13 @@ bookmarksnumbered=true,hyperindex=false,pdfstartview=%
 
 % graphs
 \usepackage{tikz}
-\usetikzlibrary{arrows}
+\usetikzlibrary{arrows, positioning} % automata
 \usepackage[nounderscore]{syntax}
 \usepackage{lscape}
 \usepackage{stmaryrd}
+
+% Tikz styles
+\tikzstyle{cfg}=[->,>=stealth',shorten >=1pt,auto,node distance=1.8cm,thick,every node/.style={circle,fill=gray!10,draw,font=\sffamily\bfseries}]
+\tikzstyle{cfgpath}=[every node/.style={font=\sffamily\small}]
+
+%\usepackage{multicol}
