@@ -1,9 +1,9 @@
 \chapter{Introduction}
 \label{chap:introduction}
 % - Zeitaufwand > Zahlen
-Testing code can be cumbersome and time-consuming. Some errors might not be found. This is especially true for multi-threaded programs. So called data races can be very hard to find and to reproduce.
+Testing code can be cumbersome and time-consuming. High code coverage lowers the chance that errors may go undetected, but there is no guarantee. This is especially true for multi-threaded programs. So called data races can be very hard to find and to reproduce.
 
-\begin{definition}[Data Race]
+\begin{definition}[Data race]
  Different threads of a program access the same shared memory location, and at least one thread writes to it.
 \end{definition}
 
@@ -12,7 +12,7 @@ With the increase in size and complexity of software projects and their source c
 \input{tables/sloc}
 
 % http://en.wikipedia.org/wiki/Dynamic_program_analysis
-One way of testing is to execute the program. This is called dynamic analysis. In order to be effective the program has to be analyzed with enough different test inputs. The goal is to find errors by running the program on inputs that are likely to produce failures. The problem with that is, that the absence of errors can't be proven and errors could remain unnoticed. There are many examples for what insufficient testing might lead to, a prominent one is the self-destruction of the Ariane 5 rocket \cite{Dowson:1997:ASF:251880.251992}.
+One way of testing is to execute the program. This is called dynamic analysis. In order to be effective the program has to be analyzed with enough different test inputs. The goal is to find errors by running the program on inputs that are likely to produce failures. The problem with that is, that the absence of errors can not be proven and errors could remain unnoticed. There are many examples for what insufficient testing might lead to, a prominent one is the self-destruction of the Ariane 5 rocket \cite{Dowson:1997:ASF:251880.251992}.
 
 % http://en.wikipedia.org/wiki/Static_program_analysis
 % http://www.di.ens.fr/~cousot/Equipeabsint-eg.shtml
