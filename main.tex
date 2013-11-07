@@ -56,6 +56,7 @@ For example, $\mathbb{D} = \mathbb{Z}$ with the relation "=" is not a complete l
 
 
 \section{Operational semantics and abstract interpretation}
+\label{sec:OpSem&AbsInt}
 C programs consist of a finite set of procedures $Proc$, including the main procedure ($main \in Proc$), which is executed first.
 
 % intraprocedural
@@ -363,8 +364,8 @@ Although Goblint uses a different approach, this concept of interprocedural path
 \section{Soundness vs. precision}
 Since the program behavior is merely over- or under-approximated, one has to differentiate between information that may or must be true. Although this applies to all domains, we take May- and Must-Sets as an example since they are used later on in the implemented analysis. Both domains with their corresponding join operation and the meaning of the empty set are described below.
 \begin{description}
-\item[Must-Set] Property must be true for all elements, but not all elements with the property must be in the set. $\sqcap = \cap$, $\emptyset = \top$.
-\item[May-Set] Property may be true or not for each element, but all elements for which  it is true must be in the set. $\sqcap = \cup$, $\emptyset = \bot$.
+\item[Must-Set] Property must be true for all elements, but not all elements with the property must be in the set. $\sqcup = \cap$, $\emptyset = \top$.
+\item[May-Set] Property may be true or not for each element, but all elements for which  it is true must be in the set. $\sqcup = \cup$, $\emptyset = \bot$.
 \end{description}
 If the sets contain elements we want to warn about, then the difference is
 \begin{description}
@@ -384,18 +385,30 @@ The results can be formatted as XML, JSON or HTML. The XML-output can be display
 \graphic{GoblintComponents}{Components used by Goblint \cite{Vojdani10Thesis}}
 
 \paragraph*{CIL}
-CIL stands for C Intermediate Language and is an infrastructure for C program analysis and transformation \cite{Necula:2002:CIL:647478.727796}. It is used to generate a high-level representation of the input C program. CIL's output can be displayed by invoking Goblint with the option \inlineSh{--set justcil true}. It does a source-to-source transformation that simplifies valid C programs into core constructs with very clean semantics. It is able to process ANSI-C programs and also programs using Microsoft C or GNU C extensions. Modules for control flow graphs, data flow and some analyses are also included.
+CIL stands for C Intermediate Language and is an infrastructure for C program analysis and transformation \cite{Necula:2002:CIL:647478.727796}. It is used to generate a high-level representation of the input C program by doing a a source-to-source transformation that simplifies valid C programs into core constructs with very clean semantics. CIL's output can be displayed by invoking Goblint with the option \inlineSh{--set justcil true}. It is able to process ANSI-C programs and also programs using Microsoft C or GNU C extensions. Modules for control flow graphs, data flow and some analyses are also included.
 
 \paragraph*{Query system}
-queries
-MayPointTo: explain CilLval as key: MayPointTo yields p[2] for *(p+2) (see 25)
+Analyses in Goblint can be run on demand, i.e. the constraints need only be evaluated once a value is needed. All the analyses are combined into a master analysis.
+
+Among others the query system can be used to get information about
+\begin{itemize}
+\item expression evaluation
+\item expression equality
+\item pointer analysis
+\item reachability
+\item locksets
+\end{itemize}
+Expression evaluation and points-to information will be used later on in the implementation.
+%MayPointTo: explain CilLval as key: MayPointTo yields p[2] for *(p+2) (see 25)
 
 \paragraph*{Domains}
-Lattice.S
-Set, Map...
+Since complete lattices are needed for termination, all domains must offer $\leq, \sqcup, \sqcap, \bot, \top$.
+
+Basic data structures like sets and maps are already available for use as domains. Since CIL values can not be used directly, there are also domains for representing C constructs like structures, arrays, L-values and so on.
+
 
 \paragraph*{Analyses}
-For implementing an analysis the following transfer functions have to be defined.
+For implementing an analysis the following transfer functions have to be defined and are called by the master analysis.
 \begin{description}
 \item \inlineML{assign (lval:lval) (rval:exp)}\\
 Assignment of an expression \verb|rval| to a L-value \verb|lval|.
@@ -420,7 +433,25 @@ Called for functions that are not defined in the program.
 \end{description}
 
 \paragraph*{Functions: enter and combine}
+As mentioned in \refSection{OpSem&AbsInt} Goblint uses a different approach than interprocedurally valid paths, which uses computation forests instead of paths to represent program executions.
 
+For all calls $(x,f(),y) \in E_p$ to a function $f$ with start node $e_f$ and return node $r_f$ inside a procedure $p \in Proc$, we set up the constraints
+\begin{align}
+\sigma[e_f] &\sqsubseteq enter \; \sigma[x]\\
+\sigma[y] 	&\sqsubseteq combine \; (\sigma[x], \sigma[r_f])
+\end{align}
+with
+\begin{align}
+enter \; d &= d|_{Globals}\\
+combine \; (d_1, d_2) &= (d_1|_{Locals}) \oplus (d_2|_{Globals})
+\end{align}
+which means that $enter$ only keeps the global variables in the domain and $combine$ merges the locals from the call-site with the globals from the return point of the function.
+
+Since Goblint uses calling contexts (denoted as $a$ below) to differentiate between function calls at a node, the real constraints are different, but the idea is similar:
+\begin{align}
+\sigma[e_f, a]	&\sqsubseteq a\\
+\sigma[y, a]	&\sqsubseteq combine \; (\sigma[x, a], \sigma[r_f, enter \; \sigma[x]])
+\end{align}
 
 
 \chapter{Verifying correct usage of file handles}
@@ -677,33 +708,25 @@ The analysis uses the following transfer functions, which are called by the fram
 %\end{lstlisting}
 \begin{description}
 \item \inlineML{assign (lval:lval) (rval:exp)}\\
-Assignment of an expression \verb|rval| to a L-value \verb|lval|.\\
 Warn about changed file pointer if \verb|lval| $\in$ \verb|D| and set the entry to $\top$.
 
 \item \inlineML{branch (exp:exp) (tv:bool)}\\
-Enter a branch where the condition \verb|exp| is either true or false, depending on \verb|tv|.\\
 Used to handle error-case of \verb|fopen|. If \verb|exp| compares an L-value \verb|lval| with an integer and the expression can be transformed into \verb|lval==0| with \verb|tv| being true, then change the state to \verb|Error|.
 
-\item \inlineML{body (f:fundec)}\\
-Called when the body of a function is entered.
+%\item \inlineML{body (f:fundec)}\\
 
 \item \inlineML{return (exp:exp option) (f:fundec)}\\
-Called once a function returns, \verb|exp| contains the expression if one is returned.\\
 If the returning function is \verb|main|, print out a summary of unclosed files if there are any.
 If a L-value is returned, save it as a special entry \verb|return_var| in the domain.
 Finally remove all formals and locals of the function from the domain.
 
 \item \inlineML{enter (lval: lval option) (f:varinfo) (args:exp list)}\\
-Enter a function \verb|f| with arguments \verb|args| and the returned value optionally being saved to \verb|lval|.\\
 Save the current location to the location stack if the function is not \verb|main|.
 
 \item \inlineML{combine (lval:lval option) fexp (f:varinfo) (args:exp list) (au:D.t)}\\
-Leave a function \verb|f| and combine the updated domain \verb|au| with the context of the call site. Counterpart to \verb|enter|.\\
 Pop the top element from the location stack. If \verb|return_val| is set and there is an \verb|lval| which is assigned to, save the entry \verb|return_val| points to with \verb|lval| as a new key in the domain.
 
-
 \item \inlineML{special (lval: lval option) (f:varinfo) (arglist:exp list)}\\
-Called for functions that are not defined in the program.\\
 Add the current location to the location stack. Issue warnings and/or modify domain depending on \verb|lval| and the called function. The details are described below.
 \end{description}
 
