@@ -386,17 +386,17 @@ Although Goblint uses a different approach, this concept of interprocedural path
 
 
 \section{Soundness vs. precision}
-Since the program behavior is merely over- or under-approximated, one has to differentiate between information that may or must be true. Although this applies to all domains, we take May- and Must-Sets as an example since they are used later on in the implemented analysis. Both domains with their corresponding join operation and the meaning of the empty set are described below.
+Since the program behavior is merely over- or under-approximated, one has to differentiate between information that may or must be true. Although this applies to all domains, we take may- and must-sets as an example since they are used later on in the implemented analysis. Both domains with their corresponding join operation and the meaning of the empty set are described below.
 \begin{description}
-\item[Must-Set] Property must be true for all elements, but not all elements with the property must be in the set. $\sqcup = \cap$, $\emptyset = \top$.
-\item[May-Set] Property may be true or not for each element, but all elements for which  it is true must be in the set. $\sqcup = \cup$, $\emptyset = \bot$.
+\item[Must-set] Property must be true for all elements, but not all elements with the property must be in the set. $\sqcup = \cap$, $\emptyset = \top$.
+\item[May-set] Property may be true or not for each element, but all elements for which  it is true must be in the set. $\sqcup = \cup$, $\emptyset = \bot$.
 \end{description}
 If the sets contain elements we want to warn about, then the difference is
 \begin{description}
-\item[Must-Set] Precision: every warning is an error, but the program may still have other errors.
-\item[May-Set] Soundness: there might be false positives, but if there are no warnings, then the program is error-free.
+\item[Must-set] Precision: every warning is an error, but the program may still have other errors.
+\item[May-set] Soundness: there might be false positives, but if there are no warnings, then the program is error-free.
 \end{description}
-To summarize: the Must-Set is precise but maybe unsound and the May-Set is sound but maybe not very precise.
+To summarize: the must-set is precise but maybe unsound and the may-set is sound but maybe not very precise.
 
 
 \section{Goblint}
@@ -676,7 +676,7 @@ The domain $\mathbb{V}$ represents one file handle. \refListing{fileDomainType.m
 %TODO Lval.CilLval as key, Query.MayPointTo example, special variables start with @ (explain which in analysis chapter)
 
 \begin{description}
-\item[t] is a tuple consisting of a Must- and a May-Set of records.
+\item[t] is a tuple consisting of a must- and a may-set of records.
 
 \item[record] contains the L-value that was used as a key, the location stack and the state.
 
@@ -690,14 +690,14 @@ The domain $\mathbb{V}$ represents one file handle. \refListing{fileDomainType.m
 Filename and location stack are not needed do determine the correct state but instrumentalization to get more helpful warning messages.
 
 Each key \textit{must} have at most one state but \textit{may} have at least one state.
-In other words: the Must-Set starts with one element and can only shrink to zero elements; the May-Set also starts with one element and can only grow.
-Although the Must-Set could be replaced by a more efficient type, it is easier to work with sets for both.
+In other words: the must-set starts with one element and can only shrink to zero elements; the may-set also starts with one element and can only grow.
+Although the must-set could be replaced by a more efficient type, it is easier to work with sets for both.
 
-Assume the Must-Set is empty and the May-Set contains multiple elements. Even if the correct state is not known, these alternatives can be used to answer questions about the state during the analysis.
+Assume the must-set is empty and the may-set contains multiple elements. Even if the correct state is not known, these alternatives can be used to answer questions about the state during the analysis.
 
-As an example let the May-Set contain records with the states \verb|Open(..., Read)| and \verb|Open(..., Write)|. In this case it is safe to say that the file is opened - if it is writable on the other hand is unknown. Another example: if all states are \verb|Closed| but with different locations, it is safe to say that the file is closed. %TODO is this ok for join? how is it done?
+As an example let the may-set contain records with the states \verb|Open(..., Read)| and \verb|Open(..., Write)|. In this case it is safe to say that the file is opened - if it is writable on the other hand is unknown. Another example: if all states are \verb|Closed| but with different locations, it is safe to say that the file is closed. %TODO is this ok for join? how is it done?
 
-Since an empty May-Set would never occur, we can use it to encode the case where we have no knowledge anymore and the state could be anything (e.g. after an unsupported operation like pointer arithmetic).
+Since an empty may-set would never occur, we can use it to encode the case where we have no knowledge anymore and the state could be anything (e.g. after an unsupported operation like pointer arithmetic).
 For a file handle $\mathbb{M}[k]$ with key $k$ we therefore define 
 \begin{align}
 \mathbb{M}[k] = \bot &\Leftrightarrow k \notin \mathbb{M}\\
@@ -719,7 +719,7 @@ The location stack is kept because the location of the stdio-function might not 
 However, using a normal stack could lead to infinite strictly ascending chains as shown in \refListing{08-location-stack-chain.c}. Once the uninitialized variable \verb|b| contains 0, the file will be opened. This normally happens pretty fast before overflowing the call stack. So the program runs fine, but the analysis would get stuck with an ever growing location stack. To avoid this, the location stack behaves like an ordered set, i.e. if a location is already contained in the stack, it will not be pushed. %TODO check code!
 \listingC{08-location-stack-chain.c}{Infinitely growing location stack}
 %TODO test
-In \refListing{09-location-stack-alternate.c} it is not the call stack, but the filename that might escalate. The analysis is not precise enough to know that \verb|test-odd.txt| must be opened but it will end up with a May-Set containing both filenames. This is acceptable since it still knows that the file handle must be open, the problem however is that this could lead to infinite strictly ascending chains if the number of possible filenames is unbounded. This is avoided by the fact that only string literals can be used for filenames - any operation on the string will make it $\top$. Since there can only be finitely many string literals in the source code, termination is not jeopardized.
+In \refListing{09-location-stack-alternate.c} it is not the call stack, but the filename that might escalate. The analysis is not precise enough to know that \verb|test-odd.txt| must be opened but it will end up with a may-set containing both filenames. This is acceptable since it still knows that the file handle must be open, the problem however is that this could lead to infinite strictly ascending chains if the number of possible filenames is unbounded. This is avoided by the fact that only string literals can be used for filenames - any operation on the string will make it $\top$. Since there can only be finitely many string literals in the source code, termination is not jeopardized.
 
 However there is the possibility that strings are manipulated in memory or by external functions, in which case the value for the filename could be incorrect. Since filenames are currently not displayed in warnings and it does not violate soundness, this is just an inconvenience.
 \listingC{09-location-stack-alternate.c}{Mutually recursive functions}
@@ -844,7 +844,7 @@ T'(s, \pi) &=  (T(s, \pi), G(s, \pi))
 \end{align}
 Furthermore we expect them to work on edges $k \in E^*$, in which case they just use the label $lab$.
 
-That means that the concrete state at the end of a path is a tuple with the current state of the Mealy machine and a set of outputs that happened along the path. Each output has its own location derived from the edge where it happened. We keep a set in order to be able to consolidate the outputs of different paths, which is needed e.g. in case of multiple returns.
+That means that the concrete state at the end of a path is a tuple with the current state of the Mealy machine and a set of outputs that happened along the path. Each output has its own location derived from the edge where it happened. We keep a set in order to be able to consolidate the outputs of different paths at the end of the program, which is only needed in case of multiple returns.
 
 Given an interprocedural flow graph $G^* = (N^*,E^*,e_{main})$ and a Mealy machine $(S, s_0, \Sigma=E^*, \Lambda, T, G)$, the collecting semantics for a node $v \in N^*$ is then
 \begin{align}
@@ -870,7 +870,7 @@ More concretely we can set up constraints for $\sigma' : N^* \to 2^S$ for abstra
 \omega'[v] &\sqsupseteq \bigsqcup_{s\in\sigma'[u]} \{G(s,lab)\}	&\forall (u,lab,v)\in E^*
 \end{align}
 
-The abstract state of the actual implementation is different because it uses Must- and May-Sets for states and it prints most warnings directly, but the idea is similar.
+The abstract state of the actual implementation is different because it uses must- and may-sets for states and it prints most warnings directly, but the idea is similar.
 
 Both domain and analysis can be seen as generalized versions of those used in \refChapter{file}. Next we will describe the domain; the implementation details of the analysis are omitted.
 
@@ -880,7 +880,7 @@ Properties refer to an object - this could be the whole program or something ins
 Apart from L-values from statements, special keys are used to guarantee that the state is always assigned to some key.
 One such special key is used for global constraints, i.e. constraints that define no key. This could be used to verify that one function is always called before the other globally. One could also implement other special keys, e.g. to refer to the current function or thread.
 
-The domain for the specification therefore is very similar to the domain for file handles. It consists of a map $\mathbb{M}$ with L-values as a key and a domain $\mathbb{V}$ for its values. $\mathbb{V}$ is a tuple of Must- and May-Set, each containing records with a key, location stack and state (see \refListing{specDomainType.ml}).
+The domain for the specification therefore is very similar to the domain for file handles. It consists of a map $\mathbb{M}$ with L-values as a key and a domain $\mathbb{V}$ for its values. $\mathbb{V}$ is a tuple of must- and may-set, each containing records with a key, location stack and state (see \refListing{specDomainType.ml}).
 \listingML{specDomainType.ml}{Type of the specification domain}
 The main difference is that the state is a string instead of a sum type, which means that it is not fixed at compile-time but comes from the specification file at run-time.
 
