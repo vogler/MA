@@ -181,14 +181,14 @@ Since we are interested in the state at a given program point and there might be
 \begin{align}
 \sigma : N \to 2^S.
 \end{align}
-This is called the \textit{collecting semantics}, which contains all the possible states at program point $N$.
+This is called the \textit{collecting semantics}, which contains all the possible states at program points $N$.
 Analyses like constant propagation can be used to improve the precision by excluding paths (e.g. branches that can never be taken).
 
 However, cycles in the control flow graph might lead to infinitely many paths, which is why the collecting semantics can not be computed in general.
 
 % abstract semantics and MOP
 \paragraph*{Abstract interpretation}
-To solve this problem, the concrete semantics is soundly approximated by the abstract semantics, consisting of a domain $\mathbb{D}$ which has to be a complete lattice, and abstract transfer functions which have to be monotonic. As a monotonic constraint system on a complete lattice which satisfies the ascending chain condition is guaranteed to converge to a least fixed point, computability is gained at the cost of precision.
+To solve this problem, the concrete semantics is soundly approximated by the abstract semantics, consisting of a domain $\mathbb{D}$ which has to be a complete lattice, and abstract transfer functions which have to be monotonic. As monotonic functions on a complete lattice which satisfies the ascending chain condition are guaranteed to converge to a least fixed point, computability is gained at the cost of precision.
 
 A concrete state $s \in S$ is described by an abstract state $d \in \mathbb{D}$ if both are in the \textit{description relation} $\Delta \subseteq S \times \mathbb{D}$:
 \begin{align}
@@ -257,7 +257,7 @@ Defining the abstract semantics such that
 \begin{align}
 \absEf{k}{d} = \alpha \; \{ \conEf{k}{s} \; | \; s \in \gamma \; d\}
 \end{align}
-guarantees not only safe but also optimal abstraction.
+guarantees not only safe, but also optimal abstraction.
 
 
 \paragraph*{Computability and solving}
@@ -491,9 +491,9 @@ The following examples for common problems served as a guideline for the impleme
 \listingC{01-ok.c}{Append text to file. Everything fine?}
 
 \paragraph*{Opening files}
-This might seem fine, since the file will be created if it does not exist, but what happens if the file cannot be written to?
+This might seem fine, since the file will be created if it does not exist, but what happens if the file can not be written to?
 If the file exists but we do not have write access, running the code will result in a segmentation fault at \inlineC{fprintf}.
-We forgot to check the result of \inlineC{fopen} which returns a null pointer if the file could not be opened successfully.
+We forgot to check the result of \inlineC{fopen}, which returns a null pointer if the file could not be opened successfully.
 Accessing a file that does not exist for reading also results in a segmentation fault.
 
 This case is handled by the manual implementation and can also be checked using the specification language. For this example warnings should be issued that the file handle might not be open after line 5.
@@ -742,6 +742,7 @@ The analysis uses the following transfer functions, which are called by the fram
 \begin{description}
 \item \inlineML{assign (lval:lval) (rval:exp)}\\
 Warn about changed file pointer if \verb|lval| $\in$ \verb|D| and set the entry to $\top$.
+To improve precision aliasing of file pointers was implemented for simple cases (join of two aliases still yields $\top$).
 
 \item \inlineML{branch (exp:exp) (tv:bool)}\\
 Used to handle error-case of \verb|fopen|. If \verb|exp| compares an L-value \verb|lval| with an integer and the expression can be transformed into \verb|lval==0| with \verb|tv| being true, then change the state to \verb|Error|.
@@ -764,6 +765,12 @@ If \verb|return_val| is set and there is an \verb|lval| which is assigned to, sa
 \item \inlineML{special (lval: lval option) (f:varinfo) (arglist:exp list)}\\
 Add the current location to the location stack. Issue warnings and/or modify domain depending on \verb|lval| and the called function.
 \end{description}
+
+The implementation of these functions constitutes the abstract effects $\absEf{k}{d}$ on $d \in \mathbb{D}$ for all statements $k$. For example
+\begin{align}
+\absEfT{p1 = p2}{d} = \text{\inlineML{assign p1 p2}}
+\end{align}
+As the effects resemble those specified in the concrete semantics, most of the work is done in \inlineC{special}. Analogously to $Other$ in the concrete semantics, the implementation relies on the query system to get may-point-to information and to evaluate expressions.
 
 The analysis is sound if the abstract effects describe the concrete effects correctly for all edges $k$:
 \begin{align}
@@ -837,7 +844,7 @@ T'(s, \pi) &=  (T(s, \pi), G(s, \pi))
 \end{align}
 Furthermore we expect them to work on edges $k \in E^*$, in which case they just use the label $lab$.
 
-That means that the concrete state at the end of a path is a tuple with the current state of the Mealy machine and a set of outputs that happened along the path.
+That means that the concrete state at the end of a path is a tuple with the current state of the Mealy machine and a set of outputs that happened along the path. Each output has its own location derived from the edge where it happened. We keep a set in order to be able to consolidate the outputs of different paths, which is needed e.g. in case of multiple returns.
 
 Given an interprocedural flow graph $G^* = (N^*,E^*,e_{main})$ and a Mealy machine $(S, s_0, \Sigma=E^*, \Lambda, T, G)$, the collecting semantics for a node $v \in N^*$ is then
 \begin{align}
@@ -863,7 +870,7 @@ More concretely we can set up constraints for $\sigma' : N^* \to 2^S$ for abstra
 \omega'[v] &\sqsupseteq \bigsqcup_{s\in\sigma'[u]} \{G(s,lab)\}	&\forall (u,lab,v)\in E^*
 \end{align}
 
-The abstract state of the actual implementation is different because it uses Must- and May-Sets for states and outputs warnings directly, but the idea is similar.
+The abstract state of the actual implementation is different because it uses Must- and May-Sets for states and it prints most warnings directly, but the idea is similar.
 
 Both domain and analysis can be seen as generalized versions of those used in \refChapter{file}. Next we will describe the domain; the implementation details of the analysis are omitted.
 
