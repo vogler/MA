@@ -1,0 +1,14 @@
+digraph file {
+  node [shape=box, style=rounded];
+  node [peripheries=2]; 1 freed; node [peripheries=1];
+  node [style=filled]; w1 w2 w3 w4; node [style=rounded]
+  1 -> w1	[label="malloc(_)"];
+  1 -> w2	[label="free($p)"];
+  1 -> w3	[label="*$p = _"];
+  1 -> u_alloc	[label="$p = malloc(_)"];
+  u_alloc -> 1	[label="branch($p == 0, true)"];
+  u_alloc -> alloc	[label="branch($p == 0, false)"];
+  alloc -> w4	[label="$p = malloc(_)"];
+  alloc -> freed	[label="free($p)"];
+  freed -> 1	[style=dotted, label="_"];
+}

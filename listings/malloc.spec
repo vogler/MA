@@ -6,19 +6,18 @@ w4 "overwriting unfreed pointer $ [leak]"
 1        -w1> 1        malloc(_)
 1        -w2> 1        free($p)
 1        -w3> 1        *$p = _
-1        ->   u_alloc  $p = malloc($size)
+1        ->   u_alloc  $p = malloc(_)
 
-u_alloc  ->   1        branch($key==0, true)
-u_alloc  ->   alloc    branch($key==0, false)
+u_alloc  ->   1        branch($p==0, true)
+u_alloc  ->   alloc    branch($p==0, false)
 
-alloc    -w4> alloc    $p = malloc($size)
+alloc    -w4> alloc    $p = malloc(_)
 alloc    ->   freed    free($p)
 
 freed    ->>  1        _ // let state 1 handle the rest
 
 // setup which states are end states
-1        ->   end      _
-freed    ->   end      _
+end: 1, freed
 // warning for all entries that are not in an end state
-_end "pointer is never freed"
-_END "unfreed pointers: $"
+!end "pointer is never freed"
+!end@return "unfreed pointers: $"

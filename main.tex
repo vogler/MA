@@ -16,15 +16,15 @@ This approach has several disadvantages: effort of writing good test suites, err
 The run-time of the analysis is directly proportional to the execution time of the program.
 
 \item[static analysis]
-The source code of the program or something derived from it is analyzed without being executed.
+The source code of the program, or something derived from it, is analyzed without being executed.
 The simplest form is to look for certain patterns in the code, which is not very flexible and mostly used to check style or coding conventions.
 
 A more powerful approach is abstract interpretation (originally proposed by Cousot and Cousot \cite{Cousot:1977:AIU:512950.512973}), which tries to derive semantics from the code.
-The problem is that there is no general and effective method to do so. The analysis could possibly not terminate, which is why sometimes the semantics have to be approximated in order to avoid non-termination. In general the analysis can be accelerated with the cost of getting less precise.
+The problem is that there is no general and effective method to do so. The analysis could possibly not terminate, which is why sometimes the semantics has to be approximated in order to avoid non-termination. In general, the analysis can be accelerated with the cost of getting less precise.
 
 For a sound analysis this means that it would find more errors than there actually are in the program, i.e. it overestimates. The advantage is that it will find all real errors. So if it does not find any errors, the program is guaranteed to be error-free.
 
-A disadvantage is that the analysis could need much more time and memory than the execution of the program, or that for a certain size, the analysis cannot be done within acceptable boundaries.
+A disadvantage is that the analysis could need much more time and memory than the execution of the program, so that subsystems have to be analyzed separately in order to remain within acceptable boundaries.
 \end{description}
 
 
@@ -153,7 +153,7 @@ for(int i=0; i<42; i++){
 \end{tikzpicture}
 \end{minipage}
 
-  \caption{Control-flow graphs with branching}
+  \caption{Control flow graphs with branching}
   \label{fig:cfg_branch}
 \end{figure}
 
@@ -163,7 +163,7 @@ Every edge $k = (u, lab, v)$ defines a partial transformation
 \begin{align}
 \llbracket k \rrbracket = \llbracket lab \rrbracket : S \to S
 \end{align}
-of the state. This is called the concrete effect of the edge.
+of the state. This is called the \textit{concrete effect} of the edge.
 
 The result of the computation of a path $\pi = k_1 \pi_1$ on a state $s$ is defined as
 \begin{align}
@@ -175,20 +175,20 @@ and the result for the empty path $\pi = \epsilon$ as
 \end{align}
 
 % concrete semantics and MOP
-The concrete semantics then specify the type of state and the transfer functions for edges.
+The \textit{concrete semantics} then specifies the type of state and the transfer functions for edges.
 %TODO example for constant propagation?
-Since we are interested in the state at a given program point and there might be multiple paths leading to that point, we have to merge all the paths, which results in a powerset of possible states. This means that we are looking for a mapping
+Since we are interested in the state at a given program point and there might be multiple paths leading to that point, we have to consider all the paths, which results in a powerset of possible states. This means that we are looking for a mapping
 \begin{align}
 \sigma : N \to 2^S.
 \end{align}
-This is called the Merge Over all Paths (MOP) solution, which contains all the possible states at program point $N$.
+This is called the \textit{collecting semantics}, which contains all the possible states at program point $N$.
 Analyses like constant propagation can be used to improve the precision by excluding paths (e.g. branches that can never be taken).
 
-However, circles in the control flow graph might lead to infinitely many paths, which is why the MOP solution can not be computed in general.
+However, cycles in the control flow graph might lead to infinitely many paths, which is why the collecting semantics can not be computed in general.
 
 % abstract semantics and MOP
 \paragraph*{Abstract interpretation}
-To solve this problem, the concrete semantics are soundly approximated by abstract semantics, consisting of a domain $\mathbb{D}$ which has to be a complete lattice, and abstract transfer functions which have to be monotonic. As a monotonic constraint system on complete lattices is guaranteed to converge to a least fix-point, computability is gained at the cost of precision.
+To solve this problem, the concrete semantics is soundly approximated by the abstract semantics, consisting of a domain $\mathbb{D}$ which has to be a complete lattice, and abstract transfer functions which have to be monotonic. As a monotonic constraint system on a complete lattice which satisfies the ascending chain condition is guaranteed to converge to a least fixed point, computability is gained at the cost of precision.
 
 A concrete state $s \in S$ is described by an abstract state $d \in \mathbb{D}$ if both are in the \textit{description relation} $\Delta \subseteq S \times \mathbb{D}$:
 \begin{align}
@@ -202,11 +202,9 @@ A \textit{concretization function} $\gamma : \mathbb{D} \to 2^S$ is used to map 
 \begin{align}
 \gamma \; d = \{s \; | \; s \;\Delta\; d\}
 \end{align}
-
-The monotone abstraction and concretization functions form a Galois connection between concrete and abstract states.
-That means that a concretized abstract state is always described by the original and that the concretization of an abstracted concrete state will be a super set of the original:
+It holds that a concretized abstract state is always described by the original and that the concretization of an abstracted concrete state will be a super set of the original:
 \begin{align}
-\gamma \; d \;\Delta\; d\\
+s \in \gamma \; d \implies s \;\Delta\; d\\
 s \;\Delta\; d \implies s \subset \gamma \; d
 \end{align}
 
@@ -246,14 +244,33 @@ which is illustrated in \refFigure{descrRel}.
   \label{fig:descrRel}
 \end{figure}
 
-\paragraph*{Computability and solving}
-The MOP solution with abstract effects for a point $v$, start point $start$ and start state $d_0 \in \mathbb{D}$ is defined as
+Although the above is enough to guarantee safe abstraction, it might not be optimal.
+Analogously to the concretization function $\gamma$, there is an abstraction function $\alpha : 2^S \to \mathbb{D}$:
 \begin{align}
-\mathcal{I}^*[v] = \bigsqcup \{\llbracket \pi \rrbracket^\sharp \; d_0 \; | \; start \to^* v\}.
+\alpha \; S = d \in \mathbb{D}. \; \forall s \in S. \; s \;\Delta\; d
+\end{align}
+The monotonic abstraction and concretization functions form a Galois connection between concrete and abstract states:
+\begin{align}
+2^S \overset{\gamma}{\underset{\alpha} {\leftrightarrows}} \mathbb{D}
+\end{align}
+Defining the abstract semantics such that
+\begin{align}
+\absEf{k}{d} = \alpha \; \{ \conEf{k}{s} \; | \; s \in \gamma \; d\}
+\end{align}
+guarantees not only safe but also optimal abstraction.
+
+
+\paragraph*{Computability and solving}
+The collecting semantics is abstracted by the so called Merge Over all Paths (MOP) solution: for a point $v$, start point $start$ and start state $d_0 \in \mathbb{D}$ it is defined as
+\begin{align}
+\mathcal{I}^*[v] = \bigsqcup \{\llbracket \pi \rrbracket^\sharp \; d_0 \; | \; \pi : start \to^* v\}.
 \end{align}
 
 % constraint system
-Instead of this join over an possibly infinite set, a constraint system is used to guarantee computability. Since the abstract state is a complete lattice and the transformations are monotonic, the system will always converge to a least fix-point solution (Knaster-Tarski theorem) that approximates the MOP solution \cite{kam1977monotone}\cite{Kam:1976:GDF:321921.321938}. % (Kam, Ullman)
+Instead of this join over an possibly infinite set, a constraint system is used to guarantee computability.
+Since the abstract state is a complete lattice and the transformations are monotonic, the Knaster-Tarski theorem states that the set of fixed points must also be a complete lattice, which implies the existence of a least/greatest fixed point (complete lattices can not be empty).
+This solution is computable if the complete lattice has finite height or if it does not contain infinite strictly ascending chains.
+Under these premises the constraint system will always converge to a least fixed point solution that is an upper bound for the MOP solution \cite{kam1977monotone, Kam:1976:GDF:321921.321938}. % (Kam, Ullman)
 
 The constraint system for a start point $start$ and start state $d_0 \in \mathbb{D}$ is set up as
 \begin{align}
@@ -263,9 +280,16 @@ The constraint system for a start point $start$ and start state $d_0 \in \mathbb
 and can be solved using various iteration schemes.
 %TODO example for constraint system?
 A solution of the constraint system then approximates the MOP solution:
-%TODO Says so in the slides, but shouldn't they be the same? The abstract MOP solution approximates the concrete MOP solution.
 \begin{align}
 \mathcal{I}[v]	   &\sqsupseteq \mathcal{I}^*[v] &\forall v \in N
+\end{align}
+If all effects of edges $f = \llbracket k \rrbracket^\sharp$ are distributive, i.e.
+\begin{align}
+f(\bigsqcup X) 	   &= \bigsqcup \{f(x) \; | \; x \in X\} 	&\forall \emptyset \neq X \subseteq \mathbb{D}
+\end{align}
+the two solutions are even equal \cite{Kildall:1973:UAG:512927.512945}:
+\begin{align}
+\mathcal{I}[v]	   &= \mathcal{I}^*[v] &\forall v \in N
 \end{align}
 
 % interprocedural
@@ -330,22 +354,22 @@ void main(){
   ;
 \end{tikzpicture}
 \end{minipage}
-  \caption{Control-flow graph with multiple procedures}
+  \caption{Control flow graph with multiple procedures}
   \label{fig:ivp}
 \end{figure}
 
 The problem now is that not all paths are valid, i.e. some paths would be considered for the solution despite not being possible executions of the program. This happens because we do not ensure that function calls return to the right place.
-In the example, there is only one valid path (1-2-1f-2f-3-1g-1f-2f-2g-4-5), but we would consider infinitely many paths because of the circle (3-1g-1f-2f-3).
+In the example, there is only one valid path (1-2-1f-2f-3-1g-1f-2f-2g-4-5), but we would consider infinitely many paths because of the cycle (3-1g-1f-2f-3).
 
 An interprocedural flow graph $G^*$, as defined in \cite{Sharir:1981:CallStrings}, solves this problem by only allowing so called interprocedurally valid paths ($\mathit{IVP}(G^*)$). It is defined as $(N^*,E^*,e_{main})$ where $e_{main}$ is the entry point of the program.
 
 An interprocedurally valid path $\pi \in \mathit{IVP}(G^*)$ can be determined by its call-string $cs(\pi)$, which is the subsequence of edges that have not been returned yet. Both can be inductively defined on the length of $\pi$:
 \begin{itemize}
 \item if $\pi = \epsilon$ then $\pi \in \mathit{IVP}(G^*)$ and $cs(\pi) = \epsilon$
-\item if $\pi = \pi' N$ and $\gamma = cs(\pi')$ then $\pi \in \mathit{IVP}(G^*)$ iff $\pi' \in \mathit{IVP}(G^*)$ and one of the following holds:
-\subitem $N$ is neither a call nor a return edge. $cs(\pi) = \gamma$.
-\subitem $N$ is a call edge. $cs(\pi) = \gamma N$.
-\subitem $N$ is a return edge, $\gamma$ is of the form $\gamma' C$ and $N$ corresponds to the call edge $C$. $cs(\pi) = \gamma'$.
+\item if $\pi = \pi' k$ and $\varsigma = cs(\pi')$ then $\pi \in \mathit{IVP}(G^*)$ iff $\pi' \in \mathit{IVP}(G^*)$ and one of the following holds:
+\subitem $k$ is neither a call nor a return edge. $cs(\pi) = \varsigma$.
+\subitem $k$ is a call edge. $cs(\pi) = \varsigma k$.
+\subitem $k$ is a return edge, $\varsigma$ is of the form $\varsigma' k'$ and $k$ corresponds to the call edge $k'$. $cs(\pi) = \varsigma'$.
 \end{itemize}
 
 The domain is then augmented by this information and the transfer functions for call and return edges modified to ignore invalid edges based on it. Therefore all paths over edges from $E^*$ are guaranteed to be valid.
@@ -402,13 +426,13 @@ Expression evaluation and points-to information will be used later on in the imp
 %MayPointTo: explain CilLval as key: MayPointTo yields p[2] for *(p+2) (see 25)
 
 \paragraph*{Domains}
-Since complete lattices are needed for termination, all domains must offer $\leq, \sqcup, \sqcap, \bot, \top$.
+Since complete lattices are needed for termination, all domains must offer functions for $\leq, \sqcup, \sqcap, \bot, \top$. Custom functions for widening and narrowing can be specified to make the constraint system converge faster.
 
 Basic data structures like sets and maps are already available for use as domains. Since CIL values can not be used directly, there are also domains for representing C constructs like structures, arrays, L-values and so on.
 
 
 \paragraph*{Analyses}
-For implementing an analysis the following transfer functions have to be defined and are called by the master analysis.
+For implementing an analysis the following transfer functions have to be defined and are called by the master analysis. The used domain is \verb|D| and \verb|D.t| its type. The types \verb|lval| (L-value), \verb|exp| (expression), \verb|fundec| (function declaration) and \verb|varinfo| (variable) come from CIL.
 \begin{description}
 \item \inlineML{assign (lval:lval) (rval:exp)}\\
 Assignment of an expression \verb|rval| to a L-value \verb|lval|.
@@ -433,14 +457,15 @@ Called for functions that are not defined in the program.
 \end{description}
 
 \paragraph*{Functions: enter and combine}
-As mentioned in \refSection{OpSem&AbsInt} Goblint uses a different approach than interprocedurally valid paths, which uses computation forests instead of paths to represent program executions.
+As mentioned in \refSection{OpSem&AbsInt} Goblint uses a different approach than interprocedurally valid paths; instead, it represents program executions as computation forests.
 
 For all calls $(x,f(),y) \in E_p$ to a function $f$ with start node $e_f$ and return node $r_f$ inside a procedure $p \in Proc$, we set up the constraints
 \begin{align}
 \sigma[e_f] &\sqsubseteq enter \; \sigma[x]\\
 \sigma[y] 	&\sqsubseteq combine \; (\sigma[x], \sigma[r_f])
 \end{align}
-with
+
+Depending on the analysis, $enter$ and $combine$ can then be defined accordingly. For a simple value analysis without escaping of variables, they might be
 \begin{align}
 enter \; d &= d|_{Globals}\\
 combine \; (d_1, d_2) &= (d_1|_{Locals}) \oplus (d_2|_{Globals})
@@ -452,6 +477,9 @@ Since Goblint uses calling contexts (denoted as $a$ below) to differentiate betw
 \sigma[e_f, a]	&\sqsubseteq a\\
 \sigma[y, a]	&\sqsubseteq combine \; (\sigma[x, a], \sigma[r_f, enter \; \sigma[x]])
 \end{align}
+The context helps to improve precision since a call to $f$ with context $a \in \mathbb{D}$ will be treated separately from a call with context $b \neq a$.
+
+In summary the result of this approach is similar to that of interprocedurally valid paths: $enter$ and $combine$ make sure that functions return to their call-site and the context distinguishes different calls.
 
 
 \chapter{Verifying correct usage of file handles}
@@ -511,7 +539,7 @@ Other functions like \inlineC{fscanf}, \inlineC{fputc}, \inlineC{fgetc}, \inline
 
 
 \section{Concrete and abstract semantics}
-For the concrete semantics we are only interested in the effects of statements on file handles. Other semantics are intentionally left undefined.
+For the concrete semantics we are only interested in the effects of statements on file handles. Other parts of the semantics are intentionally left undefined.
 File handles are L-values pointing to a structure \inlineC{FILE} which keeps information about the file descriptor, the stream position, a pointer to the stream's buffer and some status flags.
 We differentiate between the states
 \begin{itemize}
@@ -522,7 +550,7 @@ We differentiate between the states
 \end{itemize}
 The type of the concrete state is then %TODO difference between () and NULL? valid type?
 \begin{align}
-S' &: \mathit{Lval} \to (\mathit{File} * \mathit{Mode}) + \mathit{NULL} + ()\\
+S' &: \mathit{Lval} \to (\mathit{File} * \mathit{Mode}) \cup \{\mathit{Error}, \mathit{Closed}\}\\
 S  &: S' * \mathit{Other}
 \end{align}
 where $S'$ is a mapping from L-values to the states opened, error or closed. A L-value is unopened if it is not mapped.
@@ -571,37 +599,37 @@ Expressions that are evaluated in $Other$ can be arbitrarily complex, e.g. the l
 Side effects that we are interested in are denoted after the state.
 
 \begin{align*}
-\conEf{p = fopen(f, m)}{(s,o)} &= \{ (s \oplus \{ \conEf{p}{o} \mapsto (\conEf{f}{o}, \conEf{m}{o}) \}, o), (s,o) \}\\
-%\conEf{Pos(p)}{(s,o)} &= \left\{\begin{array}{ll}
-%	(s \oplus \{ \conEf{p}{o} \mapsto (f, m, \mathit{true}) \}, o) & \text{if } s(\conEf{p}{o}) = (f,m,\mathit{false})\\
+\conEfT{p = fopen(f, m)}{(s,o)} &= \{ (s \oplus \{ \conEfT{p}{o} \mapsto (\conEfT{f}{o}, \conEfT{m}{o}) \}, o), (s,o) \}\\
+%\conEfT{Pos(p)}{(s,o)} &= \left\{\begin{array}{ll}
+%	(s \oplus \{ \conEfT{p}{o} \mapsto (f, m, \mathit{true}) \}, o) & \text{if } s(\conEfT{p}{o}) = (f,m,\mathit{false})\\
 %	(s,o) & \text{else}
 %	\end{array}\right.\\
-%\conEf{Neg(p)}{(s,o)} &= \left\{\begin{array}{ll}
-%	(s \ominus \{ \conEf{p}{o} \mapsto (f, m, c) \}, o) & \text{if } s(\conEf{p}{o}) = (f,m,c)\\
+%\conEfT{Neg(p)}{(s,o)} &= \left\{\begin{array}{ll}
+%	(s \ominus \{ \conEfT{p}{o} \mapsto (f, m, c) \}, o) & \text{if } s(\conEfT{p}{o}) = (f,m,c)\\
 %	(s,o) & \text{else}
 %	\end{array}\right.\\
-\conEf{fclose(p)}{(s,o)} &= \{(s \oplus \{ \conEf{p}{o} \mapsto () \}, o)\}\\
-\conEf{fprintf(p, args)}{(s,o)} &= \{(s,o)\}\\
+\conEfT{fclose(p)}{(s,o)} &= \{(s \oplus \{ \conEfT{p}{o} \mapsto \mathit{Closed} \}, o)\}\\
+\conEfT{fprintf(p, args)}{(s,o)} &= \{(s,o)\}\\
 	\text{ and}&
 	\left\{\begin{array}{ll}
-	\text{something written} & \text{if } s(\conEf{p}{o}) = (f,m) \wedge writable(m)\\
-	\text{nothing written} & \text{if } s(\conEf{p}{o}) = (f,m) \wedge \neg writable(m)\\
-	& \vee \: s(\conEf{p}{o}) = ()\\
-	\text{segmentation fault} & \text{if } s(\conEf{p}{o}) = \mathit{NULL}\\
+	\text{something written} & \text{if } s(\conEfT{p}{o}) = (f,m) \wedge writable(m)\\
+	\text{nothing written} & \text{if } s(\conEfT{p}{o}) = (f,m) \wedge \neg writable(m)\\
+	& \vee \: s(\conEfT{p}{o}) = \mathit{Closed}\\
+	\text{segmentation fault} & \text{if } s(\conEfT{p}{o}) = \mathit{Error}\\
 	\text{undefined} & \text{else}
 	\end{array}\right.\\
-\conEf{fscanf(p, args)}{(s,o)} &= \{(s,o)\}\\
+\conEfT{fscanf(p, args)}{(s,o)} &= \{(s,o)\}\\
 	\text{ and}&
 	\left\{\begin{array}{ll}
-	\text{something read} & \text{if } s(\conEf{p}{o}) = (f,m) \wedge readable(m)\\
-	\text{nothing read} & \text{if } s(\conEf{p}{o}) = (f,m) \wedge \neg readable(m)\\
-	& \vee \: s(\conEf{p}{o}) = ()\\
-	\text{segmentation fault} & \text{if } s(\conEf{p}{o}) = \mathit{NULL}\\
+	\text{something read} & \text{if } s(\conEfT{p}{o}) = (f,m) \wedge readable(m)\\
+	\text{nothing read} & \text{if } s(\conEfT{p}{o}) = (f,m) \wedge \neg readable(m)\\
+	& \vee \: s(\conEfT{p}{o}) = \mathit{Closed}\\
+	\text{segmentation fault} & \text{if } s(\conEfT{p}{o}) = \mathit{Error}\\
 	\text{undefined} & \text{else}
 	\end{array}\right.\\
-\conEf{p1 = p2}{(s,o)} &=\\ &\left\{\begin{array}{ll}
-	\{(s \oplus \{ \conEf{p1}{o} \mapsto x \}, o)\} & \text{if } (\conEf{p2}{o}, x) \in s\\
-	\{(s \ominus \{ \conEf{p1}{o} \mapsto y \}, o)\} & \text{if } (\conEf{p2}{o}, x) \notin s \wedge (\conEf{p1}{o}, y) \in s\\
+\conEfT{p1 = p2}{(s,o)} &=\\ &\left\{\begin{array}{ll}
+	\{(s \oplus \{ \conEfT{p1}{o} \mapsto x \}, o)\} & \text{if } (\conEfT{p2}{o}, x) \in s\\
+	\{(s \ominus \{ \conEfT{p1}{o} \mapsto y \}, o)\} & \text{if } (\conEfT{p2}{o}, x) \notin s \wedge (\conEfT{p1}{o}, y) \in s\\
 	\{(s,o)\} & \text{else}
 	\end{array}\right.
 \end{align*}
@@ -641,19 +669,22 @@ s \;\Delta\; d_1 \;\wedge\; d_1 \sqsubseteq d_2 \implies s \;\Delta\; d_2
 
 
 \section{A domain for representing file handle usage}
-Since it should be possible to track multiple file handles, a map \textbf{M} from L-values \textbf{K} to another domain \textbf{V} is needed. The bottom value for \textbf{M} is the empty map.
-The domain \textbf{V} represents one file handle. \refListing{fileDomainType.ml} shows how its type \inlineML{t} is defined.
+Since it should be possible to track multiple file handles, we choose our domain $\mathbb{D}$ to be a a map $\mathbb{M}$ from L-values $K$ to another domain $\mathbb{V}$. The bottom value for $\mathbb{M}$ is the empty map.
+The domain $\mathbb{V}$ represents one file handle. \refListing{fileDomainType.ml} shows how its type \inlineML{t} is defined.
 \listingML{fileDomainType.ml}{Type of the file handle domain}
+
+%TODO Lval.CilLval as key, Query.MayPointTo example, special variables start with @ (explain which in analysis chapter)
+
 \begin{description}
 \item[t] is a tuple consisting of a Must- and a May-Set of records.
 
-\item[record] contains the L-value \verb|key| that was used as a key, the location stack \verb|loc| and \verb|state|.
+\item[record] contains the L-value that was used as a key, the location stack and the state.
 
 \item[state] can be \verb|Open(filename, mode)|, \verb|Closed| or \verb|Error|.
 
 \item[mode] can be \verb|Read| if the file is opened read-only or \verb|Write| for all other modes.
 
-\item[loc] is a stack of locations from the assignment to \verb|lval| down to the use of the stdio-function.
+\item[loc] is a stack of locations from the latest assignment down to the use of the stdio-function.
 %It is maintained as a special value inside \textbf{M}. On entering a function, the location of the call site is pushed, and popped again when leaving the function.
 \end{description}
 Filename and location stack are not needed do determine the correct state but instrumentalization to get more helpful warning messages.
@@ -667,22 +698,22 @@ Assume the Must-Set is empty and the May-Set contains multiple elements. Even if
 As an example let the May-Set contain records with the states \verb|Open(..., Read)| and \verb|Open(..., Write)|. In this case it is safe to say that the file is opened - if it is writable on the other hand is unknown. Another example: if all states are \verb|Closed| but with different locations, it is safe to say that the file is closed. %TODO is this ok for join? how is it done?
 
 Since an empty May-Set would never occur, we can use it to encode the case where we have no knowledge anymore and the state could be anything (e.g. after an unsupported operation like pointer arithmetic).
-For a file handle \verb|M[k]| with key \verb|k| we therefore define 
+For a file handle $\mathbb{M}[k]$ with key $k$ we therefore define 
 \begin{align}
-M[k] = \bot &\Leftrightarrow k \notin M\\
-M[k] = \top &\Leftrightarrow M[k] = (\emptyset, \emptyset).
+\mathbb{M}[k] = \bot &\Leftrightarrow k \notin \mathbb{M}\\
+\mathbb{M}[k] = \top &\Leftrightarrow \mathbb{M}[k] = (\emptyset, \emptyset).
 \end{align}
-The ordering and the join operation for two values (a,b) and (c,d) are defined as
+The ordering and the join operation for two values $(a,b)$ and $(c,d)$ are defined as
 \begin{align}
 (a,b) \leq (c,d) &\Leftrightarrow c \subset a \wedge b \subset d\\
-(a,b) \sqcap (c,d) &= (a \cap c, b \cup d).
+(a,b) \sqcup (c,d) &= (a \cap c, b \cup d).
 \end{align}
 
 The location stack is kept because the location of the stdio-function might not always be the location where the warning should be issued. \refListing{07-location-stack.c} defines a custom function for opening files. The warnings should be placed at the call to this function instead of at the call to \verb|fopen|.
 %TODO is one location enough?
 \listingC{07-location-stack.c}{Location of warning when using custom function for opening files}
 
-\paragraph*{Monotonicity and boundedness}
+\paragraph*{Termination}
 % cf theory chapter. both are needed so that the analysis terminates
 % show that there can not be any infinite strictly ascending chains
 However, using a normal stack could lead to infinite strictly ascending chains as shown in \refListing{08-location-stack-chain.c}. Once the uninitialized variable \verb|b| contains 0, the file will be opened. This normally happens pretty fast before overflowing the call stack. So the program runs fine, but the analysis would get stuck with an ever growing location stack. To avoid this, the location stack behaves like an ordered set, i.e. if a location is already contained in the stack, it will not be pushed. %TODO check code!
@@ -698,7 +729,7 @@ However there is the possibility that strings are manipulated in memory or by ex
 
 
 \section{An analysis for checking file handle usage}
-The analysis uses the following transfer functions, which are called by the framework. The used domain is \verb|D| and \verb|D.t| its type. The types \verb|lval| (L-value), \verb|exp| (expression), \verb|fundec| (function declaration) and \verb|varinfo| (variable) come from CIL.
+The analysis uses the following transfer functions, which are called by the framework, in order to transform the abstract state for different statements and issue warnings according to the side effects specified in the concrete semantics.
 %\begin{lstlisting}[language=ML]
 %let assign ctx (lval:lval) (rval:exp) : D.t = ...
 %let branch ctx (exp:exp) (tv:bool) : D.t = ...
@@ -720,17 +751,25 @@ Used to handle error-case of \verb|fopen|. If \verb|exp| compares an L-value \ve
 \item \inlineML{return (exp:exp option) (f:fundec)}\\
 If the returning function is \verb|main|, print out a summary of unclosed files if there are any.
 If a L-value is returned, save it as a special entry \verb|return_var| in the domain.
-Finally remove all formals and locals of the function from the domain.
+Finally remove all non-escaping formals and locals of the function from the domain.
 
 \item \inlineML{enter (lval: lval option) (f:varinfo) (args:exp list)}\\
-Save the current location to the location stack if the function is not \verb|main|.
+Save the current location to the location stack if the function is not \verb|main|. Only keep globals and variables that are reachable from \verb|args| in the domain for \verb|f|.
 
 \item \inlineML{combine (lval:lval option) fexp (f:varinfo) (args:exp list) (au:D.t)}\\
-Pop the top element from the location stack. If \verb|return_val| is set and there is an \verb|lval| which is assigned to, save the entry \verb|return_val| points to with \verb|lval| as a new key in the domain.
+Pop the top element from the location stack.
+Add all entries from the updated domain \verb|au| to the local domain.
+If \verb|return_val| is set and there is an \verb|lval| which is assigned to, save the entry \verb|return_val| points to with \verb|lval| as a new key in the domain.
 
 \item \inlineML{special (lval: lval option) (f:varinfo) (arglist:exp list)}\\
-Add the current location to the location stack. Issue warnings and/or modify domain depending on \verb|lval| and the called function. The details are described below.
+Add the current location to the location stack. Issue warnings and/or modify domain depending on \verb|lval| and the called function.
 \end{description}
+
+The analysis is sound if the abstract effects describe the concrete effects correctly for all edges $k$:
+\begin{align}
+s \;\Delta\; d \implies \conEf{k}{s} \;\Delta\; \absEf{k}{d}
+\end{align}
+Since the transitions between states of file handles are treated the same as in the concrete semantics, the analysis is sound for the states and issued warnings. Filenames, although not used, might be unsound.
 
 
 
@@ -740,17 +779,17 @@ Our goal is to abstract the semantics of a program in order to verify properties
 The behavior of a system can be described using state diagrams, consisting of a finite number of states and transitions between those states.
 Such state diagrams can be formalized by so called finite state machines or finite automata.
 The transitions can be deterministic (at most one transition for each state and input) or nondeterministic (multiple possible next states for each state and input).
-Both deterministic finite automata (DFA) and nondeterministic finite automata (NFA) are usually defined by a 5-tuple $(S, \Sigma, \delta, S_0, F)$, consisting of
+Both deterministic finite automata (DFA) and nondeterministic finite automata (NFA) are usually defined by a 5-tuple $(S, \Sigma, \delta, s_0, F)$, consisting of
 \begin{itemize}
 \item a finite set of states (S)
 \item a finite set of input symbols called the alphabet ($\Sigma$)
 \item a transition function ($\delta : S \times \Sigma \rightarrow S$)
-\item a start state ($S_0 \in S$)
+\item a start state ($s_0 \in S$)
 \item a set of accept states ($F \subseteq S$).
 \end{itemize}
 The automaton then accepts a string $w = a_1 a_2 ... a_n$ over the alphabet $\Sigma$ if there is a sequence of states $r_0, r_1, ..., r_n$ in $S$ with
 \begin{itemize}
-\item $r_0 = S_0$
+\item $r_0 = s_0$
 \item $r_{i+1} = \delta(r_i, a_{i+1})$, for $i=0, ..., n-1$
 \item $r_n \in F$.
 \end{itemize}
@@ -763,12 +802,12 @@ A better suited solution for our purpose is a finite state transducer, which has
 \end{itemize}
 The Mealy machine was chosen as a better fit for the specification since it is more flexible and avoids introducing intermediate states that are used solely for output. Furthermore it keeps the number of states low ($n^2$ vs. $n$ possible output values for $n$ states), which is good for visualization.
 
-Compared to a finite automaton a Mealy machine is a 6-tuple $(S, S_0, \Sigma, \Lambda, T, G)$, consisting of
+Compared to a finite automaton a Mealy machine is a 6-tuple $(S, s_0, \Sigma, \Lambda, T, G)$, consisting of
 \begin{itemize}
 \item a finite set of states (S)
-\item a start state ($S_0 \in S$)
+\item a start state ($s_0 \in S$)
 \item a finite set called the input alphabet ($\Sigma$)
-\item a finite set called the output alphabet ($\Delta$)
+\item a finite set called the output alphabet ($\Lambda$)
 \item a transition function ($T : S \times \Sigma \rightarrow S$)
 \item an output function ($G : S \times \Sigma \rightarrow \Lambda$).
 \end{itemize}
@@ -777,34 +816,74 @@ A transition, which corresponds to an edge in the graph, therefore consists of a
 
 For the specification we use a Mealy machine where
 \begin{itemize}
-\item the states define the abstract semantics (e.g. file handle is open or closed),
+\item the states define the properties (e.g. file handle is open or closed),
 \item the input alphabet consists of the statements of the program,
-\item the output alphabet consists of the warnings that are output and the empty element $\epsilon$ to avoid output.
+\item the output alphabet consists of the warnings and the empty element $\epsilon$ to avoid output.
 \end{itemize}
 Using concrete statements for the transitions would not be very flexible, which is why constraints are used instead. The constraints for each state form an extra automaton and work similar to pattern matching in functional languages: they can contain identifiers for binding values and wildcards for matching everything. Once a constraint matches the input statement, the transition is taken. For string constants regular expressions are also supported.
 This allows a very concise specification of alternatives.
-
-
-%\section{Supported types of constraints}
-% see grammar: function calls
 %TODO check comparison constraints after assignment
+
+\paragraph*{Theory}
+Next we will examine how the Mealy machine relates to concrete and abstract semantics of the specification.
+
+First let $T$, $G$ and $T'$ be defined for paths:
+\begin{align}
+T(s, \epsilon_\Sigma) &= s\\
+T(s, k\pi') &= T(T(s, k), \pi')\\
+G(s, \epsilon_\Sigma) &= \emptyset\\
+G(s, k_1k_2\pi') &=  G(s, k_1) \cup G(T(s, k_2), \pi')\\
+T'(s, \pi) &=  (T(s, \pi), G(s, \pi))
+\end{align}
+Furthermore we expect them to work on edges $k \in E^*$, in which case they just use the label $lab$.
+
+That means that the concrete state at the end of a path is a tuple with the current state of the Mealy machine and a set of outputs that happened along the path.
+
+Given an interprocedural flow graph $G^* = (N^*,E^*,e_{main})$ and a Mealy machine $(S, s_0, \Sigma=E^*, \Lambda, T, G)$, the collecting semantics for a node $v \in N^*$ is then
+\begin{align}
+\mathcal{I}'[v] = \bigcup \{\llbracket \pi \rrbracket \; (s_0, \emptyset) \; | \; \pi : e_{main} \to^* v\}
+\end{align}
+where
+\begin{align}
+\conEf{\pi}{(s,o)} = (s', o \cup o') \text{ with } (s', o') = T'(s, \pi).
+\end{align}
+
+Since this solution can not be computed in general, we define abstract semantics used for the MOP solution
+\begin{align}
+\mathcal{I}^*[v] = \bigsqcup \{\llbracket \pi \rrbracket^\sharp \; (d_0, \emptyset) \; | \; \pi : e_{main} \to^* v\}
+\end{align}
+which is approximated by the solution of a constraint system that can be computed:
+\begin{align}
+\mathcal{I}[start] &\sqsupseteq (d_0, \emptyset)\\
+\mathcal{I}[v]	   &\sqsupseteq \llbracket lab \rrbracket^\sharp \; (\mathcal{I}[u])	&\forall (u, lab, v) \in E^*
+\end{align}
+More concretely we can set up constraints for $\sigma' : N^* \to 2^S$ for abstracting $T$, and $\omega' : N^* \to 2^{2^\Lambda}$ for abstracting $G$:
+\begin{align}
+\sigma'[v] &\sqsupseteq \bigsqcup_{s\in\sigma'[u]} \{T(s,lab)\}	&\forall (u,lab,v)\in E^*\\
+\omega'[v] &\sqsupseteq \bigsqcup_{s\in\sigma'[u]} \{G(s,lab)\}	&\forall (u,lab,v)\in E^*
+\end{align}
+
+The abstract state of the actual implementation is different because it uses Must- and May-Sets for states and outputs warnings directly, but the idea is similar.
+
+Both domain and analysis can be seen as generalized versions of those used in \refChapter{file}. Next we will describe the domain; the implementation details of the analysis are omitted.
 
 
 \section{A domain for representing the state of properties}
 Properties refer to an object - this could be the whole program or something inside the program, which can be addressed by a L-value. For the file handles this was a L-value at a certain position in the checked statements and allowed to differentiate between multiple handles.
-Apart from L-values special keys are used to guarantee that the state is always assigned to some key.
+Apart from L-values from statements, special keys are used to guarantee that the state is always assigned to some key.
 One such special key is used for global constraints, i.e. constraints that define no key. This could be used to verify that one function is always called before the other globally. One could also implement other special keys, e.g. to refer to the current function or thread.
 
-The domain for the specification therefore is very similar to the domain for file handles. It consists of a map \textbf{M} with L-values as a key \textbf{K} and a domain \textbf{V} for its values. \textbf{V} is a tuple of May- and Must-Set, each containing records with a key, location stack and state (see \refListing{specDomainType.ml}).
+The domain for the specification therefore is very similar to the domain for file handles. It consists of a map $\mathbb{M}$ with L-values as a key and a domain $\mathbb{V}$ for its values. $\mathbb{V}$ is a tuple of Must- and May-Set, each containing records with a key, location stack and state (see \refListing{specDomainType.ml}).
 \listingML{specDomainType.ml}{Type of the specification domain}
 The main difference is that the state is a string instead of a sum type, which means that it is not fixed at compile-time but comes from the specification file at run-time.
 
 
 \section{Specification format}
-A specification file contains two types of definitions:
+A specification file contains three types of definitions:
 \begin{itemize}
 \item warnings, consisting of an identifier and text
-\item edges, consisting of a start state, optional outputs, optional forwarding, an end state and a constraint.
+\item edges, consisting of a start state, optional outputs, optional forwarding, an end state and a constraint
+\item state groups, consisting of a name for the group and a list of states (currently only used to specify end states).
 \end{itemize}
 Definitions are separated by line breaks and can be interleaved since the whole file is parsed and split into a list of warnings and a list of edges. Empty lines and C-style comments are ignored.
 
@@ -813,9 +892,7 @@ Definitions are separated by line breaks and can be interleaved since the whole 
 The semantics and extensions to the syntax are described below.
 \begin{description}
 \item[warnings]
-Identifiers of warnings can also be used as a target by edges. Such transitions have an implicit back edge to the previous state.
-
-Multiple warnings can be specified like this: \verb|a -w1,w2,w3> b c()| (\verb|w1|, \verb|w2| and \verb|w3| will be output if the automaton is in state \verb|a| and the constraint \verb|c| matches).
+Multiple warnings can be specified like this: \verb|a -w1,w2,w3> b c()|  in which case \verb|w1|, \verb|w2| and \verb|w3| will be output if the automaton is in state \verb|a| and the constraint \verb|c| matches.
 
 \item[states]
 The states $S$ of the Mealy machine are implicitly defined by the start and end states used by edges.
@@ -824,8 +901,8 @@ The states $S$ of the Mealy machine are implicitly defined by the start and end 
 The start state of the first transition defines the start state of the automaton.
 
 \item[end states]
-End states are an extension that allows to warn about certain states at the end of the program. A state \verb|x| is marked as an end state by the edge \verb|x -> end _|.
-At the end of the program the warnings with the identifiers \verb|_end| and \verb|_END| are issued for all states that are not marked as an end state. The difference between the two is the location for the warning: \verb|_end| places it at the location for that state, \verb|_END| places it at the end of the \verb|main| function. For the latter \verb|$| can be used as a placeholder for the list of keys.
+End states are an extension that allows to warn about certain states at the end of the program. They are specified as a list \verb|end: a, b, c|.
+At the end of the program the warnings with the identifiers \verb|!end| and \verb|!end@return| are issued for all states that are not marked as an end state. The difference between the two is the location for the warning: \verb|!end| places it at the location for that state, \verb|!end@return| places it at the return points of the \verb|main| function. For the latter \verb|$| can be used as a placeholder for the list of keys.
 
 \item[wildcard]
 An edge with \verb|_| as a constraint matches everything. Wildcards can also be used inside expressions.
@@ -907,10 +984,12 @@ Another feature are wildcards. In each state pattern matching is done on the con
 \refListing{../file.optimistic.spec} shows a specification for file handles like implemented in \refChapter{file}. It is optimistic about \verb|fopen|, i.e. there are no warnings for missing success checks.
 \listingC{../file.optimistic.spec}{An optimistic specification for file handle usage}
 
-The resulting graph can be seen in \refFigure{file}. %TODO format differently
+The resulting graph can be seen in \refFigure{file_optimistic}. While it might be helpful for visualizing relations between states, it fails to encompass the order of constraints, which is relevant for pattern matching.
+
+To make the graph less terse, the warnings of reflexive edges (all but \verb|w7|) are displayed separately and thought to have implicit back edges.
 
 \begin{landscape}
-\graphic{file}{Automaton for optimistic file handle usage}
+\graphic{file_optimistic}{Automaton for optimistic file handle usage}
 \end{landscape}
 
 To make the analysis aware of possibly failing open operations, we have to extend it as shown in \refListing{../file.short.spec}, where \inlineC{branch(exp, b)} serves as a special function to split the analysis.
@@ -943,11 +1022,12 @@ Although there are only a few functions involved, dynamic memory allocation is a
 \item[Use of dangling pointers] Dereferencing of a null pointer always leads to a segmentation fault because it has neither read nor write permissions. Using other dangling pointers (e.g. not allocated or already freed memory) is undefined behavior which may result in a segmentation fault or more subtle errors during further run-time of the program.
 \end{description}
 
-\refListing{../01-malloc-free.c} shows an example program and \refListing{../malloc.spec} a specification for the correct usage of \inlineC{malloc} (other allocation functions similar) and \inlineC{free}.
+\refListing{../01-malloc-free.c} shows an example program and \refListing{../malloc.spec} a specification for the correct usage of \inlineC{malloc} (other allocation functions similar) and \inlineC{free}. See \refFigure{malloc} for its graph.
 This is only sound as long as there are no other external functions used for allocating or freeing memory!
 \listingC{../01-malloc-free.c}{An example program using dynamic memory allocation with \inlineC{malloc} and \inlineC{free}}
 \listingC{../malloc.spec}{A specification for dynamic memory allocation with \inlineC{malloc} and \inlineC{free}}
-%\graphic{malloc.spec}{A specification for dynamic memory allocation with \inlineC{malloc} and \inlineC{free}}
+\graphic{malloc}{Automaton for dynamic memory allocation with \inlineC{malloc} and \inlineC{free}}
+
 
 %\section{Locks}
 %http://en.wikipedia.org/wiki/POSIX_Threads

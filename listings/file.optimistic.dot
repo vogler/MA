@@ -1,0 +1,19 @@
+digraph file {
+  node [shape=box, style=rounded];
+  node [peripheries=2]; 1 closed; node [peripheries=1];
+  node [style=filled]; w1 w2 w3 w4 w5 w6 w8; node [style=rounded]
+  1 -> w1	[label="fopen(_)"];
+  1 -> w2	[label="fclose($fp)"];
+  1 -> w3	[label="fprintf($fp, _)"];
+  1 -> open_read	[label="$fp = fopen(_, \"r\")"];
+  1 -> open_write	[label="$fp = fopen(_, r\"[wa]\")"];
+  1 -> w8	[label="$fp = fopen(_, _)"];
+  open_read -> w4	[label="fprintf($fp, _)"];
+  open_read -> 1	[style=dotted, label="w7 | $fp = fopen(_, _)"];
+  open_write -> 1	[style=dotted, label="w7 | $fp = fopen(_, _)"];
+  open_read -> closed	[label="fclose($fp)"];
+  open_write -> closed	[label="fclose($fp)"];
+  closed -> w5	[label="fclose($fp)"];
+  closed -> w6	[label="fprintf($fp, _)"];
+  closed -> 1	[style=dotted, label="_"];
+}

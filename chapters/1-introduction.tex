@@ -12,7 +12,7 @@ With the increase in size and complexity of software projects and their source c
 \input{tables/sloc}
 
 % http://en.wikipedia.org/wiki/Dynamic_program_analysis
-One way of testing is to execute the program. This is called dynamic analysis. In order to be effective the program has to be analyzed with enough different test inputs. The goal is to find errors by running the program on inputs that are likely to produce failures. The problem with that is, that the absence of errors can not be proven and errors could remain unnoticed. There are many examples for what insufficient testing might lead to, a prominent one is the self-destruction of the Ariane 5 rocket \cite{Dowson:1997:ASF:251880.251992}.
+One way of testing is to execute the program. This is called dynamic analysis. In order to be effective, the program has to be analyzed with enough different test inputs. The goal is to find errors by running the program on inputs that are likely to produce them. The problem with that is, that the absence of errors can not be proven and some could remain undetected. There are many examples for what insufficient testing might lead to; a prominent one is the self-destruction of the Ariane 5 rocket \cite{Dowson:1997:ASF:251880.251992}.
 
 % http://en.wikipedia.org/wiki/Static_program_analysis
 % http://www.di.ens.fr/~cousot/Equipeabsint-eg.shtml
@@ -23,7 +23,7 @@ The main use case for Goblint is race detection in multi-threaded C programs. Al
 % - Goblint-Fakten: Tests, Benchmarks, Linux-Kernel komplett analysiert > gefundene Races?
 Goblint has been tested on parts of the Linux kernel and is sufficiently efficient to be used for race-detection of multi-threaded programs up to about 25 thousand lines of code \cite{Vojdani10Thesis,goblint.pdf}.
 
-In addition to XML, JSON and HTML output, there is also an Eclipse plug-in that displays the results of the analysis in a view and adds warning markers for places in the code where a data race might occur. A screenshot can be seen in \refFigure{screenshot_eclipse}.
+In addition to XML, JSON and HTML output, there is an Eclipse plug-in that displays the results of the analysis in a view and adds warning markers for places in the code where a data race might occur. A screenshot can be seen in \refFigure{screenshot_eclipse}.
 
 Information on how to setup Goblint can be found in \refChapter{app:setup} or on its homepage\footnote{\url{http://goblint.in.tum.de}}.
 
