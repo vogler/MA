@@ -1062,7 +1062,7 @@ The output window below the options is used for Goblint, compiler warnings and t
 
 Warnings are displayed directly inside the editor: those that must be true are red, those that may be true are orange (see \refFigure{webapp-26-27}).
 The specification is visualized below the editor as a graph.
-Both the warnings and the graph update when typing inside the editor. This allows conveniently developing specifications and playing around.
+Both the warnings and the graph update when typing inside the editor. This allows to conveniently develop specifications and play around.
 \graphic{webapp-26-27}{Warnings after changing one character}
 
 Both editors offer basic file controls as shown in \refFigure{webapp-source-controls}. The first two button groups exist in both editors. From left to right: new file, save, rename, delete, revert to version in git, fullscreen. Further button groups can be added for each editor. In this case specific for C-files: rerun the analysis (also happens upon typing), compile and run the program in a temporary directory, open an image of the control flow graph, open Goblint's HTML output.
@@ -1070,7 +1070,7 @@ Both editors offer basic file controls as shown in \refFigure{webapp-source-cont
 
 
 \chapter{Conclusion and future work}
-The thesis started by introducing the basic concepts of abstract interpretation as used by the static analyzer Goblint. On top of this framework we first developed an analysis to verify proper usage of file handles, which then served as a starting point for the development of an general analysis that could do the same using a custom specification language. Regular properties can be verified with this language by describing an automaton with constraints and warnings on transitions between states.
+The thesis started by introducing the basic concepts of abstract interpretation as used by the static analyzer Goblint. On top of this framework we first developed an analysis to verify proper usage of file handles, which then served as a starting point for the development of a generalized analysis that could do the same using a custom specification language. Regular properties can be verified with this language by describing an automaton with constraints and warnings on transitions between states.
 The specification language was then used to redo the manually implemented file handle analysis and verify basic dynamic memory allocation. Finally a web frontend was developed that helps with the creation of specification files by detecting errors and live visualization of the automaton. It also allows a test-driven approach as the result of the analysis is updated on each modification.
 
 As a comparison: the specification for file handles is 42 lines, while the manual implementation is 642 lines. The specification code however is about 1159 lines. %TODO update
