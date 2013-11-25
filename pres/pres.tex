@@ -341,6 +341,25 @@ int main(){
 \subsection{Implementation}
 
 \begin{frame}[fragile]{Domain}
+Track state of a file handle with a tuple (must-set, may-set), e.g.:
+\begin{itemize}
+\item $\{open\}, \{open\}$: file handle must be open
+\item $\{\}, \{open\}$: file handle may be open
+\item $\{\}, \{open, error\}$: file handle may be open or failed to open
+\end{itemize}
+The ordering and the join operation for two values $(a,b)$ and $(c,d)$ are defined as
+\begin{align}
+(a,b) \leq (c,d) &\Leftrightarrow c \subseteq a \wedge b \subseteq d\\
+(a,b) \sqcup (c,d) &= (a \cap c, b \cup d).
+\end{align}
+Keep these in a map from L-Values to file handle:
+\begin{align}
+\mathbb{M}[k] = \bot &\Leftrightarrow k \notin \mathbb{M}\\
+\mathbb{M}[k] = \top &\Leftrightarrow \mathbb{M}[k] = (\emptyset, \emptyset).
+\end{align}
+\end{frame}
+
+\begin{frame}[fragile]{Domain}
 \begin{itemize}
 \item Map from L-Values to domain for file handle:
 \end{itemize}
@@ -566,7 +585,37 @@ end: 1, freed
 \end{frame}
 
 
-\section{Demo}
+\section{Conclusion}
+
+\subsection{Evaluation}
+
+\begin{frame}[fragile]{Evaluation}
+\begin{itemize}
+\item LOC
+	\begin{itemize}
+	\item 642 for file handle analysis \pause
+	\item 1159 for spec analysis \pause
+	\item 42 for file.spec \pause
+	\end{itemize}
+\item File handle analysis on \inlineSh{git} (20k LOC CIL) done in 10s. No errors.
+\end{itemize}
+\end{frame}
+
+
+\subsection{Outlook}
+
+\begin{frame}[fragile]{Outlook}
+\begin{itemize}
+\item Extend language (now mainly functions)
+\item Increase precision (pointer modification, aliases)
+\item Machine learning on large code bases to generate specifications
+\item Make specifications complete for standard libraries
+\item Automatically load specifications for includes (e.g. \inlineC{#include <stdio.h>})
+\end{itemize}
+\end{frame}
+
+
+\subsection{Demo}
 
 \begin{frame}[fragile]{Demo}
 \begin{center}
