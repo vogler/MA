@@ -145,11 +145,11 @@
 
 \begin{frame}{Motivation}
 \begin{itemize}
-\item Static typing the C way:
+\item Type safety the C way:
 	\begin{itemize}
-	\item pointers for everything
+	\item opaque pointers for everything
 	\item NULL on error
-	\end{itemize}
+	\end{itemize} \pause
 \item Types do not enforce correct API usage
 	\begin{itemize}
 	\item Misuse can easily happen
@@ -158,9 +158,9 @@
 		\item segfault
 		\item leaks
 		\item memory corruption
-		\item unintended behavior \ldots
+		\item undefined behavior \ldots
 		\end{itemize}
-	\end{itemize}
+	\end{itemize} \pause
 	\item Hard to debug
 \end{itemize}
 \end{frame}
@@ -204,7 +204,7 @@
 %    (2) edge node {fclose()} (3)
 %  ;
 %\end{tikzpicture}
-\begin{itemize}
+\begin{itemize} \pause
 \item Any deviation from this pattern probably is an error
 \end{itemize}
 \end{frame}
@@ -216,7 +216,7 @@
 int main(){
     FILE *fp;
     fp = fopen("log.txt", "a");
-    fprintf(fp, "Testing...\n"); // log something
+    fprintf(fp, "..."); // log something
     fclose(fp);
     // do important things
 }
@@ -239,7 +239,7 @@ int main(){
     fp = fopen("log.txt", "a");
     if(fp){
         printf("file opened");
-        fprintf(fp, "Testing...\n");
+        fprintf(fp, "...");
         fclose(fp);
     }else{
         perror("failed to open file");
@@ -256,13 +256,15 @@ int main(){
 #include <stdio.h>
 
 FILE *fp;
+// ...
 
 int main(){
-    fprintf(fp, "Testing...\n"); // WARN: writing to unopened file handle fp
+    // ...
+    fprintf(fp, "..."); // WARN: writing to unopened file handle fp
     fclose(fp); // WARN: closeing unopened file handle fp
 }
 \end{lstlisting}
-\begin{itemize}
+\begin{itemize} \pause
 \item Dereferencing an uninitialized pointer is undefined behavior!
 	\begin{itemize}
 	\item Usually leads to segfault, but might do anything
@@ -290,14 +292,14 @@ int main(){
 %\end{itemize}
 %\end{frame}
 
-\begin{frame}[fragile]{Closing files}
+\begin{frame}[fragile]{Not closing files}
 \begin{lstlisting}
 #include <stdio.h>
 
 int main(){
     char text[20];
     FILE *fp;
-    fp = fopen("test.txt", "w"); // WARN: file is never closed
+    fp = fopen("lock", "w"); // WARN: file is never closed
     fprintf(fp, "Shared content");
     // fclose();
     printf("enter some text: ");
@@ -340,18 +342,17 @@ int main(){
 
 \subsection{Implementation}
 
-\begin{frame}[fragile]{Domain}
+\begin{frame}[fragile]{Domain}{Concept}
 Track state of a file handle with a tuple (must-set, may-set), e.g.:
 \begin{itemize}
-\item $\{open\}, \{open\}$: file handle must be open
-\item $\{\}, \{open\}$: file handle may be open
+\item $\{closed\}, \{closed\}$: file handle must be closed
 \item $\{\}, \{open, error\}$: file handle may be open or failed to open
-\end{itemize}
-The ordering and the join operation for two values $(a,b)$ and $(c,d)$ are defined as
+\end{itemize} \pause
+Ordering and the join operation for two values $(a,b)$ and $(c,d)$:
 \begin{align}
 (a,b) \leq (c,d) &\Leftrightarrow c \subseteq a \wedge b \subseteq d\\
 (a,b) \sqcup (c,d) &= (a \cap c, b \cup d).
-\end{align}
+\end{align} \pause
 Keep these in a map from L-Values to file handle:
 \begin{align}
 \mathbb{M}[k] = \bot &\Leftrightarrow k \notin \mathbb{M}\\
@@ -359,13 +360,13 @@ Keep these in a map from L-Values to file handle:
 \end{align}
 \end{frame}
 
-\begin{frame}[fragile]{Domain}
+\begin{frame}[fragile]{Domain}{Implementation}
 \begin{itemize}
-\item Map from L-Values to domain for file handle:
+\item Type of file handle:
 \end{itemize}
 \begin{lstlisting}[language=ML]
 type loc = location list
-type mode = Read | Write
+type mode = Read | Write | ReadWrite
 type state = Open of string*mode | Closed | Error
 type record = { key: Lval.CilLval.t; loc: loc; state: state }
 type t = record Set.t * record Set.t (* must, may *)
@@ -452,9 +453,9 @@ w1  "file handle is not saved"
 w2  "closeing unopened file handle"
 
 // transitions
-a   -w1>    a   fopen(_)
+a   -w1>    a   fopen(_, _)
 a   -w2>    a   fclose($fp)
-a   ->      b   $fp = fopen(_)
+a   ->      b   $fp = fopen(_, _)
 ...
 \end{lstlisting}
 \begin{itemize}
@@ -480,7 +481,7 @@ w6 "writing to closed file handle $"
 w7 "overwriting still opened file handle $"
 w8 "unrecognized file open mode for file handle $"
 
-1          -w1> 1           fopen(_)
+1          -w1> 1           fopen(_, _)
 1          -w2> 1           fclose($fp)
 1          -w3> 1           fprintf($fp, _)
 1          ->   open_read   $fp = fopen(_, "r")
@@ -561,7 +562,7 @@ w1 "pointer is not saved [leak]"
 w2 "freeing unallocated pointer $ [segfault?]"
 w3 "writing to unallocated pointer $ [segfault?]"
 w4 "overwriting unfreed pointer $ [leak]"
-w4 "freeing already freed pointer $ [double free!]"
+w5 "freeing already freed pointer $ [double free!]"
 
 1        -w1> 1        malloc(_)
 1        -w2> 1        free($p)
@@ -607,10 +608,13 @@ end: 1, freed
 \begin{frame}[fragile]{Outlook}
 \begin{itemize}
 \item Extend language (now mainly functions)
-\item Increase precision (pointer modification, aliases)
+\item Increase precision (pointer modification, aliases, escaping)
+\item Non-regular properties (e.g. for counting semaphores)
+\end{itemize} \pause
+\begin{itemize}
 \item Machine learning on large code bases to generate specifications
 \item Make specifications complete for standard libraries
-\item Automatically load specifications for includes (e.g. \inlineC{#include <stdio.h>})
+\item Automatically load specifications for includes (e.g. on \inlineC{#include <stdio.h>})
 \end{itemize}
 \end{frame}
 
